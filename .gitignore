@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# Data (too large / not committed — see data/README.md for how to regenerate)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Model checkpoints / large artifacts
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.onnx
+runs/
+wandb/
+mlruns/
+
+# Geospatial intermediate files
+*.tif
+*.tiff
+!docs/figures/*.tif
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.claude/
+
+# Secrets
+.env
+*.env.local
+credentials.json
+service-account*.json

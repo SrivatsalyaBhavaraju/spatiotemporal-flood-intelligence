@@ -1,0 +1,42 @@
+# Core
+python-dotenv
+numpy
+pandas
+scikit-learn
+
+# Geospatial (P1/P2)
+osmnx
+geopandas
+shapely
+networkx
+rasterio
+gdal
+imdlib
+
+# Graph ML (P3)
+torch
+torch-geometric
+torch-geometric-temporal
+
+# NLP (P4)
+transformers
+sentencepiece
+spacy
+rapidfuzz
+
+# Earth Engine / satellite (P2)
+earthengine-api
+
+# Optimization (Objective 3, optional)
+ortools
+pulp
+
+# Dashboard / viz
+streamlit
+folium
+fastapi
+uvicorn
+
+# Dev
+pytest
+jupyter
