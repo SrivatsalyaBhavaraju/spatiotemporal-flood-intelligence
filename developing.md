@@ -2,13 +2,13 @@
 
 This is the **builder's document** — companion to [`working.md`](./working.md), which explains *why* the project is scoped this way and the technical rationale for every decision. This document is about *who does what, when, and in what order*. Update the Status column as you go; that's the whole point of this file.
 
-**Team:**
-- **P1 — Geospatial & Graph Lead:** Indla Sai Sneha
-- **P2 — Ground Truth & Data Lead:** Srivatsalya Bhavaraju
-- **P3 — ML/GNN Lead:** Jonathan S Pulickal
-- **P4 — NLP / Objective 2 (+3) Lead:** Anurag Reddy Thumma
+**Team:** 4 people, labeled P1–P4 in every task table below. Who is P1 vs P2 vs P3 vs P4 is for the team to decide — pick based on interest/skill, not assigned here. Roughly:
+- **P1's track** = geospatial & graph work (OSM, DEM, line-graph transform, features)
+- **P2's track** = ground truth & data work (satellite, rainfall, label fusion)
+- **P3's track** = ML/GNN work (model, training, evaluation)
+- **P4's track** = NLP / Objective 2 work (gazetteer, geoparsing, distress classifier), and Objective 3 if attempted
 
-> Role labels are *leads*, not solo ownership — most phases need cross-support. Swap these around based on actual skills/interest; the important thing is that all 4 roles are covered by someone.
+These are tracks, not solo ownership — most phases need cross-support, and a "P1 task" doesn't have to be done by the same person all the way through if you'd rather rotate.
 
 **Timeline:** 12 weeks (~3 months), 8 phases, Phase 7 (Objective 3) optional.
 

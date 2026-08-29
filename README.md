@@ -7,12 +7,7 @@ Capstone project — ward-scale flood propagation modeling with a spatiotemporal
 
 ## Team
 
-| Role | Person |
-|---|---|
-| P1 — Geospatial & Graph Lead | Indla Sai Sneha |
-| P2 — Ground Truth & Data Lead | Srivatsalya Bhavaraju |
-| P3 — ML/GNN Lead | Jonathan S Pulickal |
-| P4 — NLP / Objective 2 (+3) Lead | Anurag Reddy Thumma |
+4 people, working as P1–P4 tracks (P1: geospatial & graph, P2: ground truth & data, P3: ML/GNN, P4: NLP/Objective 2+3) — see `developing.md` §1 for details. Who takes which track is up to the team.
 
 ## Setup
 
