@@ -114,22 +114,22 @@ Segment D has the lowest elevation, flattest slope, and is closest to a drain �
 
 **Verified conclusion: hourly, per-road-segment ground truth is not realistic to obtain for any Indian urban flood event.** This was checked directly, not assumed:
 
-- **Satellite (Sentinel-1 SAR):** nominal constellation revisit is 6 days, but only when both satellites are flying. Sentinel-1B was lost in December 2021, so throughout 2022–2024 (covering both Bengaluru-2022 and Chennai-Dec-2023 as candidate events) only Sentinel-1A was operational, giving a **~12-day revisit**. This means at best one or two SAR passes land anywhere near an event's peak — a snapshot, not a time series.
+- **Satellite (Sentinel-1 SAR):** nominal constellation revisit is 6 days, but only when both satellites are flying. Sentinel-1B was lost in December 2021 (and hadn't even launched yet in 2015), so throughout the Chennai 2015 event only Sentinel-1A was operational, giving a **~12-day revisit**. **Verified directly against the live Copernicus Data Space Ecosystem catalog (31 Aug 2026, not just literature):** exactly 4 S1A passes cover the study wards in the event window — **12 Nov, 24 Nov, 6 Dec, 18 Dec 2015** (all IW mode, GRD+SLC, full swath coverage of the AOI). None falls inside the 30 Nov–2 Dec peak itself; the nearest is Dec 6, four days after. This means at best a before/after pair brackets the peak — a snapshot pairing, not a time series, and confirmed to not include the peak day.
 - **News/traffic advisories:** genuinely useful, but report at *day / multi-hour* granularity for *named roads and localities* — not GPS-coordinate segments at exact clock times. Even the best-documented case found (Bengaluru, Sept 2022, dozens of articles) only resolves to "this road was advised-against by Monday morning," not exact timestamps.
-- **NRSC/Bhuvan (ISRO):** confirmed to hold an official RISAT-derived flood footprint for the 2015 Chennai floods — again, one event-level map, not a time series.
+- **NRSC/Bhuvan (ISRO):** an official RISAT-derived flood footprint for the 2015 Chennai floods is real and cited in peer-reviewed literature — but **verified directly (31 Aug 2026) that it is not confirmed exportable**: the live Bhuvan disaster portal has no historical-event archive for 2015 (it's oriented at current/recent disasters), and community precedent (DataMeet mailing list) confirms Bhuvan flood-zonation layers are raster WMS tiles, not shapefiles, with export requiring WMS-scraping/georeferencing workarounds unproven for this specific layer. **Downgraded to opportunistic secondary source** — pursue via a formal NRSC data request in parallel with Phase 1, not on Objective 1's critical path. Sentinel-1 is the primary ground-truth path.
 - **No open dataset exists** (checked GitHub, Kaggle, academic data registries) that provides road-segment-level, timestamped flood state for any Indian city event.
 
-**Redesigned ground truth — fusion of three coarse-but-real signals, at phase-level rather than hour-level:**
+**Redesigned ground truth — fusion of three coarse-but-real signals, at phase-level rather than hour-level, with concrete anchors now verified for Chennai 2015:**
 
 ```
-Phase 0: Pre-event   (dry baseline)
-Phase 1: Rising      (derived from the hourly rainfall ramp-up)
-Phase 2: Peak        (aligned to nearest available satellite pass / peak rainfall / news reports)
-Phase 3: Receding     (post-peak, rainfall tapering, "still waterlogged" reports)
+Phase 0: Pre-event   (dry baseline)              — anchored to the 24 Nov 2015 Sentinel-1 pass
+Phase 1: Rising      (hourly rainfall ramp-up)    — 30 Nov – 1 Dec 2015 rainfall telemetry
+Phase 2: Peak        (peak rainfall / news reports) — 1–2 Dec 2015; no direct SAR pass this close, see above
+Phase 3: Receding    (post-peak, tapering)        — anchored to the 6 Dec 2015 Sentinel-1 pass (closest post-peak, +4 days)
 ```
 
 Each phase's label per segment is built by combining:
-1. **Satellite inundation polygon** (nearest Sentinel-1 pass via change detection, or the Bhuvan RISAT footprint for Chennai 2015) — segment labeled flooded if it intersects the polygon. Known limitation: SAR underestimates flood extent in dense urban areas (confirmed in a published study of the 2015 Chennai floods) — state this explicitly as a limitation.
+1. **Satellite inundation polygon** — **primary:** Sentinel-1 change detection between the 24 Nov (pre) and 6 Dec (post) passes confirmed above; **secondary, opportunistic only:** the Bhuvan RISAT footprint for Chennai 2015, if a formal NRSC request succeeds. Segment labeled flooded if it intersects the polygon. Known limitation: SAR underestimates flood extent in dense urban areas (confirmed in a published study of the 2015 Chennai floods) — state this explicitly as a limitation. A second limitation now confirmed directly: the available passes bracket the peak rather than capturing it, so Rising/Peak boundaries lean more heavily on rainfall + news than on SAR.
 2. **News/advisory cross-check** — segments matching named flooded roads/localities are manually confirmed or added, catching what SAR misses.
 3. **Hourly rainfall time series** (the only genuinely fine-grained signal available) — used to define the phase boundaries themselves.
 
@@ -202,26 +202,30 @@ This comparison is deliberately one of the "three-way ablation" arms already pro
 | Impervious surface | Derived from WorldCover "built-up" class | 10m | Static | 🟢 | Buffer + zonal stats | **Optional** |
 | Population | Census 2011 Primary Census Abstract, ward-level | ward-level | Static, 15 yrs old | 🟢 Free (censusindia.gov.in / data.gov.in) | Spatial join segment→ward | **Optional** |
 | Ward boundaries | data.gov.in / DataMeet / city GIS portals | polygon | Static | 🟢 Confirmed for Bengaluru & Chennai | Direct use | **Keep** |
-| Satellite flood extent (Sentinel-1) | Google Earth Engine, SAR change detection | 10m | 1–2 snapshots per event | 🟢 Free access, established methodology (UN-SPIDER, ESA tutorials) | Change detection script (before/after backscatter) | **Keep, primary quantitative ground truth** |
-| Satellite flood extent (Indian source) | NRSC Bhuvan — confirmed RISAT footprint exists for **2015 Chennai floods** | event-specific | Snapshot | 🟢 Referenced directly in academic literature | Extract via Bhuvan WebGIS | **Keep — strongest ground-truth candidate found** |
+| Satellite flood extent (Sentinel-1) | Google Earth Engine, SAR change detection | 10m | 2 snapshots per event | 🟢 **Verified via live Copernicus catalog query (31 Aug 2026): 4 S1A passes confirmed over study wards — 12 Nov, 24 Nov, 6 Dec, 18 Dec 2015** | Change detection script (before/after backscatter, Nov 24 → Dec 6 pair) | **Keep — primary quantitative ground truth** |
+| Satellite flood extent (Indian source) | NRSC Bhuvan — RISAT footprint exists for **2015 Chennai floods** | event-specific | Snapshot | 🔴 **Verified 31 Aug 2026: live portal has no 2015 historical archive; flood layers are raster WMS, no confirmed vector export** — viewable/citable, not confirmed downloadable | Would require formal NRSC data request, or unproven WMS-scraping workaround | **Downgraded — opportunistic secondary only, not a dependency** |
 | News/advisory flood reports | Local news archives, traffic police advisories | road/locality-level, day/multi-hour | Coarse temporal | 🟢 Freely readable | Manual extraction + geocoding via gazetteer | **Keep — qualitative cross-check** |
 | Copernicus EMS official maps | EU Copernicus Emergency Management Service | — | — | 🔴 **Verified: no EMSR activation exists for any of the three candidate cities** | — | **Drop** |
 
-### 1.9 City & event recommendation
+### 1.9 City & event recommendation — CONFIRMED (feasibility check completed 31 Aug 2026)
 
-**Recommendation: Chennai, November–December 2015 floods.**
+**Confirmed: Chennai, 8 November – 14 December 2015 floods.** This was a recommendation as of initial scoping; it has since been independently verified (ward geometry, event timing, live satellite catalog, live Bhuvan portal) rather than left as an assumption. Full evidence, the polygon-adjacency map, and the decision table are in the [Chennai Study-Area Validation report](https://claude.ai/code/artifact/13744b14-c706-4bde-acf0-0042146e0129).
+
+**Study wards (confirmed geometrically contiguous — 16 wards):** 142, 168, 169, 170–182, forming one connected component along the Adyar river corridor from Saidapet down through Kotturpuram/Adyar to Taramani/Velachery. Verified via true polygon adjacency (Shapely) against the DataMeet ward boundary file — not centroid proximity. Zero outliers. The 168/169 link runs through a narrow neck at 177/178; worth a road-network sanity check once OSM data lands in task 1.1, but not a blocker.
+
+**Event date range:** 8 Nov – 14 Dec 2015 overall, with **30 Nov – 2 Dec 2015 as the Peak phase anchor** — both the rainfall maximum (490mm/24h at Tambaram, the heaviest single day since 1901) and the only point with a direct hydraulic forcing event (the Chembarambakkam reservoir release, ~20,000 cusecs into the Adyar river) tied to the river running through the study wards.
 
 | Criterion | Bengaluru (Sept 2022) | **Chennai (Nov–Dec 2015)** | Hyderabad (Oct 2020) |
 |---|---|---|---|
-| Ward boundaries | 🟢 Confirmed | 🟢 Confirmed | 🟡 Less clean ward-level data |
-| Official satellite flood footprint | 🔴 None found | 🟢 **NRSC/Bhuvan RISAT footprint confirmed** | 🟡 HEC-RAS modeled extent in a paper, not a released shapefile |
+| Ward boundaries | 🟢 Confirmed | 🟢 **Confirmed — 16-ward cluster geometrically verified contiguous** | 🟡 Less clean ward-level data |
+| Official satellite flood footprint | 🔴 None found | 🟡 **RISAT footprint exists but verified NOT confirmed exportable** (see below) | 🟡 HEC-RAS modeled extent in a paper, not a released shapefile |
 | Existing academic SAR replication | — | 🟢 **A published IEEE paper already did Sentinel-1 SAR change-detection mapping for this exact event** | — |
 | News timeline detail | 🟢 Best found (day/multi-hour, named roads) | 🟡 Extensively covered (India's most-documented urban flood) | 🟡 Colony-level detail |
-| Sentinel-1 revisit risk | 🟡 Only S1A flying in 2022 (~12-day revisit), unverified whether a pass landed near peak | 🟡 Same constraint, but **already proven usable by an existing paper** | 🔴 Not verified |
+| Sentinel-1 revisit risk | 🟡 Only S1A flying in 2022 (~12-day revisit), unverified whether a pass landed near peak | 🟢 **Verified via live catalog: 4 confirmed S1A passes (12/24 Nov, 6/18 Dec) fully cover the study wards** — though none lands inside the peak window itself | 🔴 Not verified |
 
-The deciding factor is not flood severity — it's that Chennai 2015 is the only candidate with **two independent, verified ground-truth trails**: an official ISRO satellite footprint, and a separate published paper that already applied the SAR methodology to this exact event. That gives the riskiest deliverable in the whole project (ground truth) a template to follow and a second source to cross-check against.
+**What changed from the original recommendation, now that it's verified rather than assumed:** the Bhuvan/RISAT footprint is real and citable, but checking the live portal directly found no 2015 historical archive and only raster WMS access with no confirmed vector export — so it's **downgraded from primary ground-truth candidate to opportunistic secondary**, pursued via a formal NRSC request off the critical path. **Sentinel-1 change detection (Nov 24 pre → Dec 6 post, both confirmed covering the study wards) is now Objective 1's primary ground-truth path.** Bengaluru 2022 remains the fallback if this ward cluster's OSM-as-proxy assumption breaks down during Phase 1.
 
-**Before committing:** spend half a day verifying directly — (1) check the Copernicus Browser for a usable Sentinel-1 pass near the event dates over the chosen wards, and (2) confirm the Bhuvan RISAT layer is actually exportable, not just referenced in a figure caption. Bengaluru 2022 is the fallback if Chennai's ~10-year-old OSM-as-proxy assumption breaks down for the chosen wards.
+**Team sign-off still needed:** this report is the evidence base for `developing.md` task 0.7 (go/no-go), which is an "All" task — check it off once the whole team has actually reviewed and agreed, not just on this verification.
 
 ### 1.10 Tech stack — Objective 1
 
@@ -454,6 +458,14 @@ Compute:             Google Colab / Kaggle free-tier GPU (T4/A100) for GNN + tra
 - [Sentinel-1 constellation status 2026](https://dataspace.copernicus.eu/news/2026-5-28-sentinel-1-orbital-reconfiguration-dates)
 - [Copernicus Data Space Catalog API](https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Catalog.html)
 - [India Flood Inventory (GitHub)](https://github.com/hydrosenselab/India-Flood-Inventory)
+- [Copernicus Data Space Ecosystem OData catalog](https://catalogue.dataspace.copernicus.eu/odata/v1/Products) — queried live 31 Aug 2026 to confirm actual Sentinel-1 acquisition dates over the study wards (§1.5, §1.9)
+- [Chennai Floods Situation Report No. 1, 2–4 Dec 2015 (ReliefWeb)](https://reliefweb.int/report/india/chennai-floods-situation-report-no-1-chennai-flood-2-4-december-2015)
+- [Chennai floods, December 2015 (World Weather Attribution)](https://www.worldweatherattribution.org/chennai-floods-december-2015/)
+- [2015 South India floods (Wikipedia)](https://en.wikipedia.org/wiki/2015_South_India_floods)
+- [ADRC disaster record — India flood 2015/11/08](https://www.adrc.asia/view_disaster_en.php?Lang=en&Key=2059)
+- [DataMeet mailing list — "Looking for flood data from ISRO Bhuvan"](https://groups.google.com/g/datameet/c/eyg-T6w6Gl4/m/TmVlyDaxGAAJ) — community precedent confirming Bhuvan disaster layers are raster WMS, not shapefiles
+- [Bhuvan disaster portal — direct check](https://bhuvan-app1.nrsc.gov.in/disaster/disaster.php) — verified live 31 Aug 2026: no 2015 historical-event archive/date picker
+- [Chennai Study-Area Validation report (feasibility check, 31 Aug 2026)](https://claude.ai/code/artifact/13744b14-c706-4bde-acf0-0042146e0129) — full ward-contiguity, date-range, Sentinel-1, and Bhuvan verification with decision table
 
 ---
 

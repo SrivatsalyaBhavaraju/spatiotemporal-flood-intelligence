@@ -298,13 +298,23 @@ gantt
 
 | # | Task | Owner | Depends on | Status |
 |---|---|---|---|---|
-| 0.1 | Create GitHub repo + local scaffold | P1 | — | ☐ |
-| 0.2 | Set up shared Python environment (`requirements.txt`, venv/conda instructions in README) | P1 | 0.1 | ☐ |
-| 0.3 | Finalize study city + select 10–20 contiguous wards | All | — | ☐ |
-| 0.4 | Confirm flood event date range (default: Chennai, Nov–Dec 2015 — see working.md §1.9) | All | 0.3 | ☐ |
-| 0.5 | Verify a usable Sentinel-1 pass exists near event dates over chosen wards (Copernicus Browser) | P2 | 0.4 | ☐ |
-| 0.6 | Verify the Bhuvan RISAT flood-footprint layer is actually exportable, not just a figure caption | P2 | 0.4 | ☐ |
+| 0.1 | Create GitHub repo + local scaffold | P1 | — | ✅ |
+| 0.2 | Set up shared Python environment (`requirements.txt`, venv/conda instructions in README) | P1 | 0.1 | ✅ |
+| 0.3 | Finalize study city + select 10–20 contiguous wards | All | — | ✅ |
+| 0.4 | Confirm flood event date range (default: Chennai, Nov–Dec 2015 — see working.md §1.9) | All | 0.3 | ✅ |
+| 0.5 | Verify a usable Sentinel-1 pass exists near event dates over chosen wards (Copernicus Browser) | P2 | 0.4 | ✅ |
+| 0.6 | Verify the Bhuvan RISAT flood-footprint layer is actually exportable, not just a figure caption | P2 | 0.4 | ✅ |
 | 0.7 | **Go/no-go decision:** confirm Chennai, or fall back to Bengaluru 2022 | All | 0.5, 0.6 | ☐ |
+
+**Feasibility check results (31 Aug 2026)** — 0.3–0.6 completed and verified, not just assumed; full evidence (polygon-adjacency map, live Sentinel-1 catalog query, Bhuvan accessibility check) is in the [Chennai Study-Area Validation report](https://claude.ai/code/artifact/13744b14-c706-4bde-acf0-0042146e0129):
+- **Study wards (16, geometrically confirmed contiguous):** 142, 168, 169, 170–182 (Adyar river corridor — Saidapet down through Kotturpuram/Adyar to Taramani/Velachery). No outliers found; the 168/169 link is a narrow neck worth re-checking once OSM roads land in 1.1.
+- **Event window:** 8 Nov – 14 Dec 2015, with **30 Nov – 2 Dec 2015** as the Peak phase anchor (rainfall max + Chembarambakkam reservoir release into the Adyar river).
+- **Sentinel-1:** 4 confirmed S1A passes covering the full study area — 12 Nov, 24 Nov, 6 Dec, 18 Dec 2015. None fall inside the peak window itself (nearest is +4 days); Nov 24 → Dec 6 is the usable pre/post change-detection pair. This is now Objective 1's **primary** ground-truth path.
+- **Bhuvan/RISAT:** downgraded from "verify" to **at-risk / secondary only** — the footprint is real (cited in literature) but the live portal has no 2015 historical archive and flood layers are raster WMS tiles with no confirmed vector export. Not to be relied on as the primary ground-truth source; pursue via a formal NRSC request in parallel with Phase 1, off the critical path.
+
+`working.md` §1.5, §1.8, and §1.9 have been updated to reflect these verified results in detail.
+
+**0.7 is still open** — it's a whole-team go/no-go, not a solo call. The recommendation coming out of the above is **GO (conditional)**: proceed with Chennai, this ward cluster, and this date range, with Sentinel-1 (not Bhuvan) as Objective 1's primary ground truth. Check it off once the team has actually signed off.
 
 **Exit criterion for Phase 0:** 0.7 checked off. Nothing in Phase 1 should start before this — it determines which OSM extent, which rainfall window, and which satellite pass everyone downloads.
 
