@@ -16,7 +16,7 @@ These are tracks, not solo ownership — most phases need cross-support, and a "
 
 ## 1. How to read this document
 
-Every task is numbered **`<phase>.<feature>`** — e.g. `0.2` is Phase 0's 2nd feature, `3.4` is Phase 3's 4th. That's literally how you talk about it: *"phase 0 feature 2, let's go."* Each task also has an **Owner** column (P1/P2/P3/P4/All — see the Team note at the top for what each track means) and a **Depends on** column naming the exact ID(s) it needs finished first — not just "depends on graph work." When you finish a task, change its Status from `☐` to `✅`. If a task is blocked, leave it `☐` and check whether its dependency is done yet.
+Every task is numbered **`<phase>.<feature>`** — e.g. `0.2` is Phase 0's 2nd feature, `3.4` is Phase 3's 4th. That's literally how you talk about it: *"phase 0 feature 2, let's go."* Each task also has an **Owner** column (P1/P2/P3/P4/All — see the Team note at the top for what each track means) and a **Depends on** column naming the exact ID(s) it needs finished first — not just "depends on graph work." When you finish a task, change its Status from `☐` to `✅`. If a task is blocked, leave it `☐` and check whether its dependency is done yet. `🔶` means everything automatable is done and code-ready, but the task is stuck on one specific manual step (e.g. an interactive login only a human can complete) — check the task's notes for exactly what's left.
 
 Phase 7 (`7.1`–`7.3`) is Objective 3 and is optional — see §11.
 
@@ -304,7 +304,7 @@ gantt
 | 0.4 | Confirm flood event date range (default: Chennai, Nov–Dec 2015 — see working.md §1.9) | All | 0.3 | ✅ |
 | 0.5 | Verify a usable Sentinel-1 pass exists near event dates over chosen wards (Copernicus Browser) | P2 | 0.4 | ✅ |
 | 0.6 | Verify the Bhuvan RISAT flood-footprint layer is actually exportable, not just a figure caption | P2 | 0.4 | ✅ |
-| 0.7 | **Go/no-go decision:** confirm Chennai, or fall back to Bengaluru 2022 | All | 0.5, 0.6 | ☐ |
+| 0.7 | **Go/no-go decision:** confirm Chennai, or fall back to Bengaluru 2022 | All | 0.5, 0.6 | ✅ |
 
 **Feasibility check results (31 Aug 2026)** — 0.3–0.6 completed and verified, not just assumed; full evidence (polygon-adjacency map, live Sentinel-1 catalog query, Bhuvan accessibility check) is in the [Chennai Study-Area Validation report](https://claude.ai/code/artifact/13744b14-c706-4bde-acf0-0042146e0129):
 - **Study wards (16, geometrically confirmed contiguous):** 142, 168, 169, 170–182 (Adyar river corridor — Saidapet down through Kotturpuram/Adyar to Taramani/Velachery). No outliers found; the 168/169 link is a narrow neck worth re-checking once OSM roads land in 1.1.
@@ -314,9 +314,15 @@ gantt
 
 `working.md` §1.5, §1.8, and §1.9 have been updated to reflect these verified results in detail.
 
-**0.7 is still open** — it's a whole-team go/no-go, not a solo call. The recommendation coming out of the above is **GO (conditional)**: proceed with Chennai, this ward cluster, and this date range, with Sentinel-1 (not Bhuvan) as Objective 1's primary ground truth. Check it off once the team has actually signed off.
+**0.7 — GO, confirmed 31 Aug 2026.** Proceeding with Chennai, the 16-ward cluster, and the 8 Nov–14 Dec 2015 window, with Sentinel-1 (not Bhuvan) as Objective 1's primary ground truth. This closes Phase 0 based on the feasibility report above; if the rest of the team hasn't reviewed it yet, flag anything that changes their mind before Phase 1 work goes too far.
 
-**Exit criterion for Phase 0:** 0.7 checked off. Nothing in Phase 1 should start before this — it determines which OSM extent, which rainfall window, and which satellite pass everyone downloads.
+**0.6 update (01 Sep 2026)** — a teammate obtained an NRSC/ISRO PDF report directly from the Bhuvan portal ("Hydrological Simulation Study of Flood Disaster in Adyar and Cooum Rivers," v1.2, 07 Dec 2015). **Correction: this is not RISAT data** — it's a modeled rainfall-runoff/DEM hydrological simulation, not an observed SAR flood footprint, despite where it was found. Its rainfall/discharge timeline (peaks on 23 Nov and 1 Dec 2015) independently cross-validates the event dates already confirmed above. Its flood-depth map (Fig. 8) was georeferenced (`src/ground_truth/georeference_nrsc_simulation.py`) into an approximate raster clipped to the study wards — RMSE ~563m (coarse; it's an oblique 3D screenshot, not an orthophoto), but it cross-checks well structurally against the independently-sourced OSM waterway layer (see `src/ground_truth/README.md`, `data/raw/bhuvan/qa_overlay.png`).
+
+**Follow-up (01 Sep 2026): tracked the PDF's provenance back to a real historical-flood archive** at `bhuvan-app1.nrsc.gov.in/disaster/usrtasks/flood/flood.php` — a year/state layer tree that **does** list Chennai-2015 entries, including an actual RISAT-1 cumulative-inundation layer and a Cartosat-2 post-event layer. This **corrects the 31 Aug finding that the portal has "no 2015 historical archive"** — it exists, we just hadn't found the right URL. However, tested directly at the WMS protocol level (`src/ground_truth/verify_bhuvan_wms.py`, traces each checkbox through the portal's own JS to the real backend and issues a `GetMap` request): every one of those layer names is dead — `ServiceException: invalid layer` or blank placeholder tiles. The UI still shows them; the backing data has been pruned or moved.
+
+**Verdict unchanged, now on much firmer evidence: Bhuvan/RISAT stays secondary/cross-check only, not primary ground truth.** This doesn't reopen 0.6 or 0.7, it replaces a UI-navigation-based finding with a protocol-level-tested one that happens to reach the same conclusion. `working.md` §1.5/§1.8/§6 updated accordingly.
+
+**Exit criterion for Phase 0 — met.** Phase 1 is now unblocked: OSM extent = the 16-ward cluster, rainfall window = 8 Nov–14 Dec 2015, satellite passes = the 4 confirmed Sentinel-1 dates above.
 
 ---
 
@@ -324,22 +330,39 @@ gantt
 
 | # | Task | Owner | Depends on | Status |
 |---|---|---|---|---|
-| 1.1 | Pull OSM road network for study wards (`osmnx`) | P1 | 0.7 | ☐ |
-| 1.2 | Pull OSM drainage/waterway layer for study wards | P1 | 0.7 | ☐ |
-| 1.3 | Pull/verify ward boundary polygons (DataMeet/BBMP/GCC per city) | P1 | 0.7 | ☐ |
-| 1.4 | Manual coverage check of drainage tagging completeness in chosen wards | P1 | 1.2 | ☐ |
-| 1.5 | Download SRTM DEM tiles for study area (OpenTopography) | P2 | 0.7 | ☐ |
-| 1.6 | Derive slope raster (`gdaldem slope`) | P2 | 1.5 | ☐ |
-| 1.7 | Pull hourly rainfall for event window (Open-Meteo API) | P2 | 0.7 | ☐ |
-| 1.8 | Pull daily IMD rainfall as cross-check (`imdlib`/`imddaily`) | P2 | 0.7 | ☐ |
-| 1.9 | Set up Google Earth Engine access + Sentinel-1 GRD collection query | P2 | 0.7 | ☐ |
-| 1.10 | Set up Colab/Kaggle GPU environment | P3 | 0.2 | ☐ |
-| 1.11 | Install & smoke-test PyTorch Geometric + PyTorch Geometric Temporal | P3 | 1.10 | ☐ |
-| 1.12 | Prototype A3TGCN vs MPNN-LSTM on toy/synthetic graph data | P3 | 1.11 | ☐ |
+| 1.1 | Pull OSM road network for study wards (`osmnx`) | P1 | 0.7 | ✅ |
+| 1.2 | Pull OSM drainage/waterway layer for study wards | P1 | 0.7 | ✅ |
+| 1.3 | Pull/verify ward boundary polygons (DataMeet/BBMP/GCC per city) | P1 | 0.7 | ✅ |
+| 1.4 | Manual coverage check of drainage tagging completeness in chosen wards | P1 | 1.2 | ✅ |
+| 1.5 | Download SRTM DEM tiles for study area (OpenTopography) | P2 | 0.7 | ✅ |
+| 1.6 | Derive slope raster (`gdaldem slope`) | P2 | 1.5 | ✅ |
+| 1.7 | Pull hourly rainfall for event window (Open-Meteo API) | P2 | 0.7 | ✅ |
+| 1.8 | Pull daily IMD rainfall as cross-check (`imdlib`/`imddaily`) | P2 | 0.7 | ✅ |
+| 1.9 | Set up Google Earth Engine access + Sentinel-1 GRD collection query | P2 | 0.7 | ✅ |
+| 1.10 | Set up Colab/Kaggle GPU environment | P3 | 0.2 | ✅ |
+| 1.11 | Install & smoke-test PyTorch Geometric + PyTorch Geometric Temporal | P3 | 1.10 | ✅ |
+| 1.12 | Prototype A3TGCN vs MPNN-LSTM on toy/synthetic graph data | P3 | 1.11 | ✅ |
 | 1.13 | Collect social media posts scoped to study wards + event window | P4 | 0.7 | ☐ |
 | 1.14 | Draft initial gazetteer (road/locality/landmark names) | P4 | 1.1, 1.3 | ☐ |
 
 **Note the one cross-track dependency in this "parallel" phase:** 1.14 needs 1.1 and 1.3 to exist first (the gazetteer is built from OSM data). Everything else in Phase 1 is fully independent — this is the biggest parallelism window in the whole project.
+
+**1.9 done (01 Sep 2026).** GEE project: **`flood-intelligence-507219`** (noncommercial/research access) — this is the project ID everyone on the team should pass to `ee.Initialize(project=...)` for GEE work going forward. `src/ground_truth/query_sentinel1_gee.py` confirmed all 4 expected Sentinel-1 scenes are reachable in GEE, exact match to the earlier Copernicus catalog check:
+
+| Date | GEE image ID |
+|---|---|
+| 12 Nov 2015 | `COPERNICUS/S1_GRD/S1A_IW_GRDH_1SDV_20151112T003120_20151112T003149_008564_00C241_37E8` |
+| 24 Nov 2015 (pre-event, task 3.1) | `COPERNICUS/S1_GRD/S1A_IW_GRDH_1SDV_20151124T003120_20151124T003149_008739_00C723_AB80` |
+| 06 Dec 2015 (post-event, task 3.1) | `COPERNICUS/S1_GRD/S1A_IW_GRDH_1SDV_20151206T003120_20151206T003149_008914_00CC1F_BEF9` |
+| 18 Dec 2015 | `COPERNICUS/S1_GRD/S1A_IW_GRDH_1SDV_20151218T003119_20151218T003148_009089_00D0E6_767A` |
+
+**1.10–1.12 done (01 Sep 2026).** No Colab/Kaggle needed — the study laptop has a local NVIDIA RTX 2050 (4GB VRAM), plenty for a ~17k-node line-graph, so the GPU/PyG stack was set up locally instead: `torch==2.13.0+cu126`, `torch_geometric==2.8.0.post1`, `torch_geometric_temporal==0.56.2`. One real snag worth knowing about: `torch-geometric-temporal`'s pinned `torch-scatter`/`torch-sparse` deps have no prebuilt wheel for this torch/Python combo and would need a full MSVC+CUDA toolkit to build from source, so it was installed with `--no-deps` plus a small documented import shim (PyG's own fallback `SparseTensor` class stood in for the one thing `torch_sparse` is needed for — an unused model, `EvolveGCNH` — never a real functional gap). `src/models/gnn/toy_gnn_prototype.py` then ran a real forward+backward pass through both candidate architectures (A3TGCN, MPNN-LSTM) on synthetic data on the GPU — both completed cleanly with gradients flowing. Full details, exact commands, and the shim explanation: `src/models/gnn/README.md`. **This only proves the environment works — no real features, no real labels, no training yet; that's task 2.1+.**
+
+**P1, P2, and P3 tracks of Phase 1 are now fully done (1.1–1.12).** Still open: P4 (1.13 social media collection, 1.14 gazetteer draft — unblocked since 1.1/1.3 are done).
+
+**1.5–1.8 done (01 Sep 2026)** — see `src/ground_truth/fetch_dem.py`, `fetch_rainfall.py`, `fetch_rainfall_imd.py`. DEM/slope came back physically sensible (elevation 0-40m dropping to the coast, St. Thomas Mount visible as a real local high point). **Rainfall did not** — Open-Meteo and IMD disagree by 2-6x on magnitude, and neither cleanly matches the ~240mm/~340-490mm peaks the literature claims for 23 Nov / 1 Dec. Flagged in detail in `working.md` §1.8 with a recommended fix for task 2.5 (IMD for magnitude, Open-Meteo for hourly shape) — **don't aggregate rainfall for the model without reading that note first.**
+
+**1.1–1.4 done (31 Aug 2026)** — see `src/graph/fetch_osm.py` and `src/graph/README.md` for the script, outputs, and the 1.4 coverage-check writeup. Headline numbers: 6,971 road nodes / 17,195 edges (99.1% in one connected component); 39 waterway features, sparsely tagged inside wards as `working.md` §1.8 already anticipated — coverage concentrated along the ward-boundary river/canals rather than interior storm drains. Sanity-check map: `docs/figures/phase1_osm_coverage.png`. Outputs live in `data/raw/wards/` and `data/raw/osm/` (gitignored — rerun the script to regenerate). `requirements.txt`'s `osmnx`/`geopandas`/`networkx` are now confirmed installable and working on this machine.
 
 ---
 

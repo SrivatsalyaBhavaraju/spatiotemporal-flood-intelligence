@@ -3,6 +3,9 @@ python-dotenv
 numpy
 pandas
 scikit-learn
+matplotlib
+pillow
+requests
 
 # Geospatial (P1/P2)
 osmnx
@@ -13,7 +16,15 @@ rasterio
 gdal
 imdlib
 
-# Graph ML (P3)
+# Ad-hoc source-document extraction (P2 — e.g. georeferencing figures out of PDF reports)
+pymupdf
+opencv-python-headless
+
+# Graph ML (P3) — do NOT plain `pip install` these, see src/models/gnn/README.md:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu126   (CUDA build, not the CPU-only default)
+#   pip install torch-geometric
+#   pip install torch-geometric-temporal --no-deps   (its torch-scatter/torch-sparse deps have no prebuilt
+#                                                       wheel for this torch/Python combo; see README shim)
 torch
 torch-geometric
 torch-geometric-temporal
