@@ -1,0 +1,73 @@
+{
+  "aoi_bbox": "80.15,12.90,80.35,13.10",
+  "checks": [
+    {
+      "label": "TN state flood extent, 05/12/2015",
+      "wms_url": "https://bhuvan-gp1.nrsc.gov.in/bhuvan/wms",
+      "layer": "flood:tn_2015_05_12",
+      "via": "loadfloodmap() -> direct WMS URL in the onclick handler",
+      "result": {
+        "ok": true,
+        "status": 200,
+        "content_type": "image/png",
+        "response_bytes": 7686,
+        "suspect_blank_or_placeholder": true
+      },
+      "verdict": "RETURNED, but tiny/likely-blank -- treat as unconfirmed"
+    },
+    {
+      "label": "TN state flood extent, 14/11/2015-18Hr",
+      "wms_url": "https://bhuvan-gp1.nrsc.gov.in/bhuvan/wms",
+      "layer": "flood:tn_2015_14_11_18",
+      "via": "loadfloodmap() -> direct WMS URL in the onclick handler",
+      "result": {
+        "ok": true,
+        "status": 200,
+        "content_type": "image/png",
+        "response_bytes": 7686,
+        "suspect_blank_or_placeholder": true
+      },
+      "verdict": "RETURNED, but tiny/likely-blank -- treat as unconfirmed"
+    },
+    {
+      "label": "Chennai RISAT-1 Cumulative Inundation (3,4,6 Dec 2015) -- the layer 0.6 originally asked about",
+      "wms_url": "https://bhuvan-ras2.nrsc.gov.in/mapcache",
+      "layer": "ch_exp_0306dec15",
+      "via": "loadlayer(type='tilecache2') -> loadmap() -> urlArray1[0] from disaster09122022_v2.js",
+      "result": {
+        "ok": false,
+        "reason": "WMS ServiceException",
+        "status": 404,
+        "body_snippet": "<?xml version='1.0' encoding=\"UTF-8\" standalone=\"no\" ?>\n<!DOCTYPE ServiceExceptionReport SYSTEM \"http://schemas.opengis.net/wms/1.1.1/exception_1_1_1.dtd\">\n<ServiceExceptionReport version=\"1.1.1\">\n<ServiceException>\nreceived wms request with invalid layer ch_exp_0306dec15\n</ServiceException>\n</Servi"
+      },
+      "verdict": "DEAD (WMS error)"
+    },
+    {
+      "label": "Chennai Post-Event Cartosat-2, 04/12/2015",
+      "wms_url": "https://bhuvan-ras2.nrsc.gov.in/mapcache",
+      "layer": "ch_c2_sat",
+      "via": "loadlayer(type='tilecache2') -> loadmap() -> urlArray1[0] from disaster09122022_v2.js",
+      "result": {
+        "ok": false,
+        "reason": "WMS ServiceException",
+        "status": 404,
+        "body_snippet": "<?xml version='1.0' encoding=\"UTF-8\" standalone=\"no\" ?>\n<!DOCTYPE ServiceExceptionReport SYSTEM \"http://schemas.opengis.net/wms/1.1.1/exception_1_1_1.dtd\">\n<ServiceExceptionReport version=\"1.1.1\">\n<ServiceException>\nreceived wms request with invalid layer ch_c2_sat\n</ServiceException>\n</ServiceExcep"
+      },
+      "verdict": "DEAD (WMS error)"
+    },
+    {
+      "label": "post_risat (generic layer name found in this server's GetCapabilities -- worth checking in case it now carries the Chennai data under a reused name)",
+      "wms_url": "https://bhuvan-ras2.nrsc.gov.in/mapcache",
+      "layer": "post_risat",
+      "via": "found by grepping this server's own GetCapabilities for risat-like names",
+      "result": {
+        "ok": true,
+        "status": 200,
+        "content_type": "image/png",
+        "response_bytes": 3007,
+        "suspect_blank_or_placeholder": true
+      },
+      "verdict": "RETURNED, but tiny/likely-blank -- treat as unconfirmed"
+    }
+  ]
+}
