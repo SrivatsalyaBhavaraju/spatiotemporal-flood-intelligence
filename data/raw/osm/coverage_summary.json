@@ -1,0 +1,36 @@
+{
+  "study_wards": [
+    142,
+    168,
+    169,
+    170,
+    171,
+    172,
+    173,
+    174,
+    175,
+    176,
+    177,
+    178,
+    179,
+    180,
+    181,
+    182
+  ],
+  "roads": {
+    "nodes": 6971,
+    "edges": 17195,
+    "weakly_connected_components": 20,
+    "largest_component_nodes": 6911
+  },
+  "waterways": {
+    "total_features": 39,
+    "tag_breakdown": {
+      "drain": 25,
+      "canal": 10,
+      "stream": 3,
+      "river": 1
+    },
+    "drainage_relevant_count": 39
+  }
+}
