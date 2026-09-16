@@ -34,6 +34,8 @@ transformers
 sentencepiece
 spacy
 rapidfuzz
+beautifulsoup4
+lxml
 
 # Earth Engine / satellite (P2)
 earthengine-api
@@ -51,3 +53,8 @@ uvicorn
 # Dev
 pytest
 jupyter
+
+# Only needed if OSM/Overpass calls fail with SSLCertVerificationError (e.g. behind a
+# corporate TLS-inspection proxy like Sophos) -- makes Python defer to the OS cert
+# store instead of certifi's bundle. See src/nlp/README.md.
+pip-system-certs

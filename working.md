@@ -258,6 +258,8 @@ Detect distress signals (people reporting being stuck, flooded, needing help) in
 
 **Research gap it fills:** existing crisis-informatics pipelines (e.g. CrisisNLP-based systems) are built and benchmarked on English-language social media, systematically under-serving regions and populations that post in regional/code-mixed languages.
 
+> **Data-source reality check (task 1.13, verified 01 Sep 2026):** live/historical social-media collection for a 2015 event is not feasible — X/Twitter's full-archive search is Enterprise-only (~$42k/month, no research tier since the 2023 Academic API shutdown), and no redistributable public dataset of 2015 Chennai flood tweets exists. The team's corpus instead comes from real, publicly accessible reporting about the event (ReliefWeb sitreps, news coverage with resident interviews, an academic retrospective), filtered to passages mentioning a study-area place name — see `src/nlp/README.md`. This is real text about the real event, but a more formal register than social media; everywhere below that says "social media post," read it as "this corpus's text unit," and revisit if the register gap turns out to matter once task 2.11's hand-labeling is underway.
+
 ### 2.2 Two separate sub-problems (this is the part that was previously unclear)
 
 Geoparsing is not one step — it's two, and conflating them is what made this objective look harder than it is:

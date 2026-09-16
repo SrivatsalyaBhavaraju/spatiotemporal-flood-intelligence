@@ -8,9 +8,24 @@ venv/
 env/
 .ipynb_checkpoints/
 
-# Data (too large / not committed — see data/README.md for how to regenerate)
+# Data — bulky/trivially-redownloadable raw sources stay out of git; the small
+# derived outputs Phase 2+ actually builds on are committed (see data/README.md).
 data/raw/*
 !data/raw/.gitkeep
+!data/raw/wards/
+!data/raw/osm/
+!data/raw/dem/
+!data/raw/rainfall/
+!data/raw/bhuvan/
+!data/raw/gazetteer/
+!data/raw/distress_text/
+
+# Raw source downloads that fit the "trivially redownloadable" case above —
+# redo via the fetch script named in data/README.md rather than committing these.
+data/raw/dem/N12E080.tif
+data/raw/dem/N13E080.tif
+data/raw/rainfall/imd_raw/
+
 data/processed/*
 !data/processed/.gitkeep
 
@@ -31,6 +46,9 @@ mlruns/
 *.tif
 *.tiff
 !docs/figures/*.tif
+!data/raw/dem/srtm_dem.tif
+!data/raw/dem/srtm_slope.tif
+!data/raw/bhuvan/fig8_georeferenced.tif
 
 # OS / editor
 .DS_Store
