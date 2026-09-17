@@ -374,17 +374,23 @@ gantt
 
 | # | Task | Owner | Depends on | Status |
 |---|---|---|---|---|
-| 2.1 | Build primal graph (`networkx`) from OSM road+drainage data | P1 | 1.1, 1.2, 1.4 | ☐ |
-| 2.2 | Transform primal → line graph (segment = node) | P1 | 2.1 | ☐ |
+| 2.1 | Build primal graph (`networkx`) from OSM road+drainage data | P1 | 1.1, 1.2, 1.4 | ✅ |
+| 2.2 | Transform primal → line graph (segment = node) | P1 | 2.1 | ✅ |
 | 2.3 | Compute static node features: elevation, slope, length, distance_to_drain | P1 | 2.2, 1.5, 1.6 | ☐ |
 | 2.4 | *(Optional)* Compute impervious %, ward population density | P1 | 2.3 | ☐ |
-| 2.5 | Aggregate rainfall into phase-window dynamic features (`rainfall_t`, `cumulative_rainfall_t`) | P2 | 1.7, 1.8 | ☐ |
-| 2.6 | Attach dynamic features to graph nodes per timestep | P2 | 2.5, 2.2 | ☐ |
+| 2.5 | Aggregate rainfall into phase-window dynamic features (`rainfall_t`, `cumulative_rainfall_t`) | P2 | 1.7, 1.8 | ✅ |
+| 2.6 | Attach dynamic features to graph nodes per timestep | P2 | 2.5, 2.2 | ✅ |
 | 2.7 | Define model input schema (`X_t`, `edge_index`, `Y_{t+1}` shapes) | P3 | 2.3, 2.6 | ☐ |
 | 2.8 | Build graph-snapshot dataset/data-loader class | P3 | 2.7 | ☐ |
 | 2.9 | Finalize gazetteer (`name → coordinate` dict) | P4 | 1.14 | ☐ |
 | 2.10 | Implement fuzzy string matching pipeline (`rapidfuzz`) against gazetteer | P4 | 2.9 | ☐ |
 | 2.11 | Hand-label distress/not-distress dataset (few hundred posts) | P4 | 1.13 | ☐ |
+
+**2.1, 2.2, 2.5, 2.6 done (17 Sep 2026)** — merged via PR [#1](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/1) (2.1, `src/graph/build_primal_graph.py`), [#2](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/2) (2.2, `src/graph/build_line_graph.py`), [#3](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/3) (2.5, `src/features/build_rainfall_phase_features.py`), [#4](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/4) (2.6, `src/features/attach_dynamic_node_features.py`). All four re-run end-to-end against the real committed Phase 1 data before merging, not just trusted from PR descriptions: primal graph reproduces Phase 1's recorded 6,971 nodes/17,195 edges exactly; line graph comes out to 17,195 nodes/48,732 edges with a clean segment_id bijection, 0 duplicate edges, 0 junction inconsistencies; bias-corrected rainfall_t lands at 1055.7/31.2/410.1/126.0mm across pre_event/rising/peak/receding (peak within the literature's ~340–490mm range) with cumulative_rainfall_t as the running sum; dynamic features broadcast correctly to all 17,195 segments × 4 phases (68,780 rows). PR #3 needed one fix before merging — it called `pd.option_context("mode.use_inf_as_na", ...)`, an option pandas 3.0 removes outright, which would crash on any fresh `pip install` since `requirements.txt` pins no pandas version; simplified to the existing `.where()` guard (verified byte-identical output) and pushed directly to the PR branch.
+
+**Note on 2.5's phase-window totals:** pre_event's total (1055.7mm over its 20-day window) is larger than peak's (410.1mm over 2 days) simply because the windows are very different lengths — this doesn't contradict peak being correct (410mm matches the literature), but the script's own printed "phase 2 should now be the clear maximum" sanity message is misleading since it's comparing un-normalized window totals. Cosmetic only, not asserted in code, doesn't affect downstream values — worth fixing the message (or switching to average intensity) whenever 2.5 is next touched, no need to reopen now.
+
+**Next:** 2.3 (static node features — elevation/slope/length/distance_to_drain) and 2.9 (finalize gazetteer) are now unblocked.
 
 ---
 
