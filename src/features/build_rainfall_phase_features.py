@@ -63,8 +63,7 @@ def bias_correct_hourly(open_meteo: pd.DataFrame, imd: pd.DataFrame) -> pd.DataF
     # Hour's share of that day's Open-Meteo total. If Open-Meteo shows zero
     # rain all day but IMD shows nonzero, fall back to an even 1/24 spread
     # rather than dividing by zero.
-    with pd.option_context("mode.use_inf_as_na", True):
-        shape = (om["precipitation_mm"] / daily_om_total).fillna(1 / 24)
+    shape = om["precipitation_mm"] / daily_om_total
     shape = shape.where(daily_om_total > 0, 1 / 24)
 
     imd_lookup = imd.set_index("date")["precipitation_mm"]
