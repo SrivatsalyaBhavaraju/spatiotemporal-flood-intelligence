@@ -1,0 +1,12 @@
+{
+  "corpus_total_passages": 19,
+  "labeled_count": 19,
+  "unlabeled_count": 0,
+  "label_counts": {
+    "not_distress": 9,
+    "distress": 8,
+    "uncertain": 2
+  },
+  "original_scope_note": "developing.md's task 2.11 description says 'a few hundred posts' -- that referred to the original live-social-media plan, which task 1.13 documents as infeasible. The actual corpus (task 1.13's real-text alternative) has 19 passages total; that's what's being labeled here, not a few hundred.",
+  "unlabeled_passage_ids": []
+}
