@@ -169,8 +169,15 @@ clean bimodal split. Full reasoning and both rejected alternatives' numbers
 are in the script's own docstring and printed in the validation report.
 
 **Result (19 Sep 2026):** 449 flood polygons, 0.60 km² total (~1.3% of the
-AOI), concentrated in 3 of 16 wards (Adyar 0.049 km², Perungudi 0.023 km²,
-Kodambakkam 0.009 km²) — the other 13 wards show no detected flooding.
+AOI), touching **all 16 of 16 study wards** — Perungudi (Ward 169) highest
+at 0.0941 km², down to Adyar (Ward 181) lowest at 0.0054 km². (An earlier
+version of this note claimed only 3 wards showed any flooding — that was a
+bug in `validate_flood_extent()`'s per-ward breakdown, not the underlying
+detection: it keyed flooded-area-per-ward on `Zone_Name` alone, and 13 of
+this study's 16 wards all share `Zone_Name="ADYAR"`, so each subsequent
+Adyar ward's area silently overwrote the previous one instead of summing.
+Fixed in `per_ward_area_breakdown()`, task 3.2's PR — the polygon geometries
+and 0.60 km² total were never affected, only this one report field.)
 Cross-checked against task 0.6's georeferenced NRSC simulation raster: mean
 depth at flood-polygon centroids (2.94m) is higher than at random AOI points
 (2.62m) — corroborating, not proof, given that raster's own ~563m RMSE.
@@ -179,11 +186,55 @@ depth at flood-polygon centroids (2.94m) is higher than at random AOI points
 limitation (working.md §1.5), not a bug to chase — dense urban canopy
 genuinely suppresses the water-like backscatter signal, and this pass pair
 brackets the 30 Nov–2 Dec peak rather than capturing it (nearest pass is +4
-days post-peak). Task 3.3 (news/advisory cross-check) is explicitly the
-step that's supposed to catch what SAR misses here — don't treat the
-13 SAR-silent wards as "confirmed dry" when 3.3/3.4 run.
+days post-peak). 0.60 km² across the whole 16-ward cluster is still a small
+fraction of the ~46.6 km² AOI. Task 3.3 (news/advisory cross-check) is
+explicitly the step that's supposed to catch what SAR misses.
 
 Outputs (`data/processed/ground_truth/`, gitignored): the three downloaded
 intermediate rasters (pre/post VV dB, JRC occurrence — kept for QA/rerun),
 `sentinel1_flood_extent.geojson`, and the validation report.
+
+## `extract_bhuvan_flood_footprint.py` — task 3.2
+
+Objective 1's SECONDARY/opportunistic flood footprint (task 0.6's verdict —
+Bhuvan/RISAT is not primary ground truth, unchanged here).
+
+**Run:**
+```bash
+python src/ground_truth/extract_bhuvan_flood_footprint.py
+```
+
+**Re-verified directly (19 Sep 2026), not just cited:** re-ran
+`verify_bhuvan_wms.py` as part of this task — Chennai's actual RISAT-1/
+Cartosat-2 WMS layers (`ch_exp_0306dec15`, `ch_c2_sat`) are still dead
+(`ServiceException: invalid layer`), unchanged from task 0.6's finding.
+There is no live, exportable RISAT SAR footprint for this event to extract.
+
+**What this extracts instead:** the one real Bhuvan-portal-sourced artifact
+this project actually has — task 0.6's follow-up NRSC/ISRO hydrological-
+simulation flood-depth raster (`fig8_georeferenced.tif`, see
+`georeference_nrsc_simulation.py` above). Thresholded at `MIN_DEPTH_M=0.1`
+(a noise/edge floor, not a "significant flooding" cutoff — 95.8% of the
+raster's valid pixels already show >0.1m modeled depth, confirming the
+source figure's whole colored region already **is** the simulation's
+claimed inundation zone) and vectorized into the same polygon shape as
+task 3.1's Sentinel-1 output, reusing that module's `sieve_mask()`/
+`vectorize_mask()`/`clip_to_wards()`/`per_ward_area_breakdown()` directly
+rather than reimplementing them.
+
+**Result (19 Sep 2026):** 35 polygons, 21.66 km² total (much larger than
+Sentinel-1's 0.60 km² — expected, since this raster is a whole-domain depth
+surface, not a discriminating change-detection result), touching 14 of 16
+wards. Cross-checked against task 3.1's Sentinel-1 result: 38.9% of the
+Sentinel-1 flood area falls inside this Bhuvan/NRSC zone — meaningful
+overlap given the two methods' opposite biases (SAR underestimates urban
+flooding; this coarse ~563m-RMSE simulation likely overestimates extent).
+
+**Read this as "was this ward inside the simulation's modeled flood zone,"
+never a segment-level signal** — same caveat as `georeference_nrsc_simulation.py`
+above. Task 3.3/3.4 should weight Sentinel-1 (task 3.1) as primary and use
+this only as a coarse, ward-scale corroboration.
+
+Outputs (`data/processed/ground_truth/`, gitignored):
+`bhuvan_nrsc_flood_extent.geojson` and the validation report.
 
