@@ -415,8 +415,8 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 | # | Task | Owner | Depends on | Status |
 |---|---|---|---|---|
 | 3.1 | Run Sentinel-1 SAR change detection in GEE (before/after backscatter) | P2 | 1.9, 0.5 | ✅ |
-| 3.2 | Extract Bhuvan RISAT flood footprint (if Chennai chosen) | P2 | 0.6 | ☐ |
-| 3.3 | Cross-check with news/traffic advisories; geocode named roads via gazetteer | P2 | 2.9, 3.1, 3.2 | ☐ |
+| 3.2 | Extract Bhuvan RISAT flood footprint (if Chennai chosen) | P2 | 0.6 | ✅ |
+| 3.3 | Cross-check with news/traffic advisories; geocode named roads via gazetteer | P2 | 2.9, 3.1, 3.2 | ✅ |
 | 3.4 | **Fuse into 4-phase label scheme** (Pre-event / Rising / Peak / Receding) per segment | P2 | 3.3, 2.2 | ☐ |
 | 3.5 | Freeze graph structure (no more topology changes after this point) | P1 | 2.3 | ☐ |
 | 3.6 | Build rule-based baseline propagation model | P1 | 3.5 | ☐ |
@@ -433,7 +433,11 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 
 **Bug found and fixed while building 3.2, in already-merged 3.1 code:** `validate_flood_extent()`'s per-ward report keyed flooded area on `Zone_Name` alone, but 13 of the 16 study wards all share `Zone_Name="ADYAR"` (distinguished only by `Ward_No`) — each subsequent Adyar ward's area was silently overwriting the previous one instead of summing, which is why 3.1's original merged note above wrongly said flooding was "concentrated in only 3 of 16 wards." Only that report field was wrong — the flood polygon geometries and 0.60 km² total were never affected. Fixed in a shared `per_ward_area_breakdown()` (keyed on a ward-unique label, accumulates) both scripts now use, with a regression test reproducing the exact real-data shape.
 
-**Next:** 3.3 (news cross-check) is now fully unblocked — 2.9's gazetteer and 2.10's fuzzy matcher (`src/nlp/fuzzy_geoparse.py`) are both merged, so distress-text place mentions can actually be geocoded now. 3.5/3.6/3.7 (P1/P3 tasks, already unblocked by 2.3/2.8) remain available in parallel.
+**3.3 done (19 Sep 2026)** — merged via PR [#12](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/12) (`src/ground_truth/cross_check_news_advisories.py`). Geoparses the real distress/news corpus (task 2.10's fuzzy matcher) against task 2.9's gazetteer, resolves each uniquely-mentioned place to line-graph segments (exact OSM `name` match tried first regardless of gazetteer `type`, else every segment in the place's containing ward), and cross-checks against 3.1/3.2's satellite extents. **Bug found and fixed on the first real run:** the gazetteer's `ward_no` column is `float64` (pandas' default once any row has a `NaN`) while `study_wards.geojson`'s `Ward_No` is `int32` — naive string comparison (`"177.0" == "177"` → `False`) meant the ward-fallback resolved **zero segments** for all 22 ward-level places despite them appearing to "resolve." Fixed by comparing as numbers, with a regression test using the exact real-data shape. Real result: 69 resolved mentions across 23 unique places → **13,939 of 17,195 segments news-flagged (81% of the graph)** — broad by design, since the retrospective/encyclopedia sources discuss the flood citywide across nearly all 16 wards, and the ward-level fallback (same coarseness as 3.2) flags every segment in a mentioned ward, not just the specific spot. Cross-checked: 5.6% overlap Sentinel-1, 47.8% overlap Bhuvan/NRSC, and **48.3% (6,736 segments) are news-only** — the concrete "catches what SAR misses" value this task is named for.
+
+**Not phase-resolved, by design:** checked directly whether the real corpus carries per-passage dates — it doesn't (only one of 19 original passages' own source URL has any date range). A news-flagged segment means "flooded at some point during the event," not "flooded in phase X." Task 3.4's fusion has to decide how to use a phase-unresolved signal.
+
+**Next:** 3.4 (fuse into the 4-phase label scheme) is now the last blocker on Phase 3's exit criterion — all of 3.1/3.2/3.3 are merged. 3.5/3.6/3.7 (P1/P3 tasks, already unblocked by 2.3/2.8) remain available in parallel.
 
 ---
 
