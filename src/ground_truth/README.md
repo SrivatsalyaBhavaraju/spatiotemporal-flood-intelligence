@@ -238,3 +238,59 @@ this only as a coarse, ward-scale corroboration.
 Outputs (`data/processed/ground_truth/`, gitignored):
 `bhuvan_nrsc_flood_extent.geojson` and the validation report.
 
+## `cross_check_news_advisories.py` — task 3.3
+
+Cross-checks task 3.1/3.2's satellite-derived flood extents against real
+news/advisory text, geocoding named roads/localities via task 2.9's
+gazetteer + task 2.10's fuzzy matcher (working.md §1.5: "News/advisory
+cross-check — segments matching named flooded roads/localities are
+manually confirmed or added, catching what SAR misses").
+
+```bash
+python src/ground_truth/cross_check_news_advisories.py
+```
+
+**Resolution rule:** for each uniquely-mentioned place, try an EXACT match
+against every line-graph segment's OSM `name` field first — regardless of
+the gazetteer's `type` (not just `type=="road"`; task 2.9's own OSM-
+verified additions are generically tagged `distress_text_candidate` even
+when the matched feature actually is a road, e.g. "Gandhi Road" — an exact
+string match against a real segment name has no real false-positive risk,
+so trying it broadly is strictly better than gating on type). If that finds
+nothing, falls back to every segment in the place's containing study ward
+— coarser, same tier as task 3.2's raster cross-check.
+
+**A real dtype bug found and fixed while building this:** the gazetteer's
+`ward_no` column is `float64` (pandas' default once any row has a `NaN` —
+task 2.9's unresolved candidates), while `study_wards.geojson`'s `Ward_No`
+is `int32`. Naive string comparison (`str(177.0) == str(177)` → `"177.0" ==
+"177"` → `False`) meant the ward-fallback silently matched ZERO segments
+for every one of the 22 ward-level resolutions on the first real run.
+Fixed by comparing as numbers (`int(float(ward_no))`), with a regression
+test using the exact real-data shape (float ward_no vs. int Ward_No) that
+would have caught it.
+
+**Result (19 Sep 2026):** 69 resolved mentions across 23 unique places (22
+via ward fallback, 1 exact segment-name match, 1 unresolved — no ward on
+record) → **13,939 news-flagged segments, 81% of the entire 17,195-segment
+graph.** That's broad, and disclosed as such: the real corpus's retrospective/
+encyclopedia sources discuss the flood citywide, naming localities spread
+across nearly all 16 study wards, and the ward-level fallback (by design,
+same coarseness as task 3.2) flags every segment in a mentioned ward, not
+just the specific spot. Cross-checked against task 3.1/3.2: 5.6% of
+news-flagged segments overlap Sentinel-1, 47.8% overlap the Bhuvan/NRSC
+zone, and **48.3% (6,736 segments) are news-only** — flagged by neither
+satellite source. That news-only set is the concrete "catches what SAR
+misses" this task is named for, not just a restated citation of the idea.
+
+**Not phase-resolved, by design — disclosed, not glossed over:** checked
+directly whether the real corpus carries per-passage dates; it doesn't
+(only the ReliefWeb sitrep source's own URL has any date range, one of 19
+original passages). A news-flagged segment means "flooded at some point
+during the event," not "flooded in phase X." Task 3.4's fusion has to
+decide how to fold in a phase-unresolved signal — this task doesn't guess.
+
+Outputs (`data/processed/ground_truth/`, gitignored): `news_cross_check_places.csv`
+(one row per resolved place), `news_cross_check_segments.geojson` (the
+13,939 flagged segments), and the validation report.
+
