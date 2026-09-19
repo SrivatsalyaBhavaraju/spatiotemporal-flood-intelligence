@@ -382,7 +382,7 @@ gantt
 | 2.6 | Attach dynamic features to graph nodes per timestep | P2 | 2.5, 2.2 | ✅ |
 | 2.7 | Define model input schema (`X_t`, `edge_index`, `Y_{t+1}` shapes) | P3 | 2.3, 2.6 | ✅ |
 | 2.8 | Build graph-snapshot dataset/data-loader class | P3 | 2.7 | ✅ |
-| 2.9 | Finalize gazetteer (`name → coordinate` dict) | P4 | 1.14 | ☐ |
+| 2.9 | Finalize gazetteer (`name → coordinate` dict) | P4 | 1.14 | ✅ |
 | 2.10 | Implement fuzzy string matching pipeline (`rapidfuzz`) against gazetteer | P4 | 2.9 | ☐ |
 | 2.11 | Hand-label distress/not-distress dataset (few hundred posts) | P4 | 1.13 | ☐ |
 
@@ -398,7 +398,11 @@ gantt
 
 **2.8 done (19 Sep 2026)** — merged via PR [#7](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/7) (`src/models/gnn/build_graph_snapshot_dataset.py`). `GraphSnapshotDataset` wraps 2.7's outputs into one `Data(x, edge_index, y)` per phase, plus `.to_a3tgcn_input()`/`.to_mpnn_lstm_input()` reproducing task 1.12's `toy_gnn_prototype.py` shape conventions exactly. Validated beyond shape-checking: ran a real forward pass through the actual `A3TGCN`/`MPNNLSTM` model classes (not synthetic data) on the full real 17,195-node graph via this loader — both completed cleanly on GPU, output shapes `(17195, 1)` and `(17195, 25)` (matches `MPNNLSTM`'s own `2*hidden+in_channels+periods-1` formula). `attach_labels()` is ready to accept task 3.4's fused labels once they exist — validated against schema.json's `y_t1_contract` — but no labels are attached yet since Phase 3 hasn't started.
 
-**Next:** 2.4 (optional impervious %/ward density), 2.9 (finalize gazetteer), and Phase 3 (ground truth fusion, 3.1–3.4 — the critical path per developing.md §7) are the open items. Phase 2's P1/P3 critical path (2.1→2.8) is now fully done.
+**2.9 done (19 Sep 2026)** — merged via PR [#10](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/10) (`src/nlp/finalize_gazetteer.py`). Re-fetched all 146 paragraphs from task 1.13's source pages (not just the 19 that survived that task's gazetteer-match pre-filter, which structurally can't reveal a missing name) and extracted 234 novel 2+-word candidate place names not already in the 1,787-name draft. Checking them against live OSM hit two real infrastructure problems, both fixed in this PR: a single 234-name query hit `413 Request Entity Too Large` on the one mirror that accepted a connection (fixed by batching into groups of 25), and two of three public Overpass mirrors (`overpass-api.de`, its `lz4` load-balanced node) consistently failed to connect at all on this network throughout development (fixed by trying the working mirror, `overpass.kumi.systems`, first). Even fixed, that connection stayed intermittently flaky — 6 of 10 batches failed on every mirror/attempt in the merged run. Net result: **109/234 candidates actually checked, 5 resolved to a real OSM feature** (Chennai Corporation, Gandhi Road, Kuberan Nagar, Royal Enfield, World Bank), 104 confirmed no match, **125 honestly recorded as unverified** (not confirmed-absent) rather than blocked on or faked.
+
+**Two of the 5 resolved matches are probably not what the source text meant, kept anyway on purpose:** "World Bank" and "Royal Enfield" most likely matched a coincidentally-named local shop and a motorcycle showroom rather than the international org / rescue-vehicle brand the distress text almost certainly referenced. Discussed directly — kept in the output rather than hand-excluded, since picking off inconvenient real OSM matches after the fact would just be the hand-curated semantic denylist this script's design was built to avoid (see its docstring's "Method" step 4). Flagged clearly for a human spot-check, same as task 1.14's own draft was.
+
+**Next:** 2.4 (optional impervious %/ward density), 2.10 (fuzzy matching, now unblocked by 2.9), and Phase 3 (ground truth fusion, 3.3/3.4 — the critical path per developing.md §7, also now unblocked) are the open items.
 
 ---
 
@@ -427,7 +431,7 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 
 **Bug found and fixed while building 3.2, in already-merged 3.1 code:** `validate_flood_extent()`'s per-ward report keyed flooded area on `Zone_Name` alone, but 13 of the 16 study wards all share `Zone_Name="ADYAR"` (distinguished only by `Ward_No`) — each subsequent Adyar ward's area was silently overwriting the previous one instead of summing, which is why 3.1's original merged note above wrongly said flooding was "concentrated in only 3 of 16 wards." Only that report field was wrong — the flood polygon geometries and 0.60 km² total were never affected. Fixed in a shared `per_ward_area_breakdown()` (keyed on a ward-unique label, accumulates) both scripts now use, with a regression test reproducing the exact real-data shape.
 
-**Next:** 3.5/3.6/3.7 (P1/P3 tasks, already unblocked by 2.3/2.8) can proceed now; 3.3 still needs 2.9 (gazetteer, not yet done) finished first, which blocks 3.4 (the Phase 3 exit criterion) in turn.
+**Next:** 3.5/3.6/3.7 (P1/P3 tasks, already unblocked by 2.3/2.8) can proceed now; 3.3 is now also unblocked (2.9's gazetteer merged) — still needs 2.10 (fuzzy matching) wired up first to actually geocode distress-text mentions, which in turn unblocks 3.4 (the Phase 3 exit criterion).
 
 ---
 
