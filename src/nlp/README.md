@@ -159,3 +159,43 @@ gitignored; see task 1.13/1.14's own commit for why):
 | `gazetteer_final.csv` | Draft rows + OSM-verified new candidates (5 this run) |
 | `gazetteer_final.json` | Flat `{name: [lon, lat]}` dict — task 2.9's literal deliverable for task 2.10's fuzzy matcher |
 | `gazetteer_finalization_report.json` | Candidate counts, resolved/dropped/**unverified** examples |
+
+## `fuzzy_geoparse.py` — task 2.10
+
+Objective 2's toponym-resolution step (working.md §2.2): given free text,
+find place-name mentions and resolve each to a gazetteer coordinate —
+sliding n-gram window + `rapidfuzz` fuzzy match + overlap resolution (one
+text span, one place).
+
+```bash
+python src/nlp/fuzzy_geoparse.py
+```
+
+**Scorer choice, tested on real examples before picking it:** `fuzz.WRatio`
+(rapidfuzz's own general-purpose default) rewards partial containment for
+length-mismatched strings — great for typos, but it also makes a single
+generic word spuriously match any longer name containing it: "road" vs
+"Gandhi Road" scored 90.0, which would flood real text with false
+positives given how many gazetteer entries are literally "`<name>` Road" or
+"`<name>` Nagar" (~1,758 road entries). Plain `fuzz.ratio` rejects those
+same false positives (53.3, 62.5) while still tolerating realistic typos
+("tansi ngr" vs "tansi nagar" → 90.0) — used instead. `SCORE_CUTOFF=85`
+was checked against a sample of ordinary English words (none scored above
+85 against any of the 1,777 real gazetteer names), not picked blind.
+
+**Result (19 Sep 2026), validated against task 1.13's exact-substring
+corpus** (`validate_against_corpus()`): 31 known locations across 19
+passages, **100% recovered** once 4 "misses" are correctly excluded — those
+were never real gaps, just the exact-substring baseline double-counting
+one mention twice (e.g. "the Adyar river" independently matches both
+"Adyar" and "Adyar River" as substrings; this script's overlap resolution
+correctly keeps only the more specific "Adyar River"). Plus **5 genuine
+extra matches** beyond the baseline: typo/spacing variants ("Vijayanagar" →
+"Vijaynagar", 95.2; "Ramnagar" → "Ram Nagar", 94.1; "storm water drains" →
+"Stormwater Drain", 94.1) and one name task 2.9 added to the gazetteer
+after task 1.13's corpus was originally built ("Kuberan Nagar", exact
+100.0) — a direct demonstration of the fuzzy pipeline picking up real
+improvements the rigid exact-match baseline can't.
+
+**Outputs** (`data/raw/gazetteer/`, committed): `fuzzy_geoparse_validation_report.json`
+— per-passage known/found/recovered/absorbed/real_misses/extra breakdown.
