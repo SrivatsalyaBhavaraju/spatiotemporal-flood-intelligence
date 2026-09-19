@@ -213,16 +213,16 @@ def train_model(ds, train_mask: torch.Tensor, epochs: int = EPOCHS, lr: float = 
 # Evaluation (reuses task 3.6's metrics, not reimplemented)
 # --------------------------------------------------------------------------
 
-def evaluate_model(model, ds, split_masks: dict, phase_id_to_name: dict, feature_stats: tuple, device=None) -> dict:
-    """`feature_stats`: the SAME (mean, std) train_model() returned --
-    evaluation must normalize with the train-derived stats, never
-    statistics computed from val/test (that would leak split information
-    into the "fixed" preprocessing)."""
+def predict_probabilities(model, ds, feature_stats: tuple, phase_id_to_name: dict, device=None) -> dict:
+    """{transition_label: (y_true[N,1], y_prob[N,1])} for every usable
+    transition -- factored out of evaluate_model() so task 4.2's
+    threshold tuning can sweep thresholds against the same raw
+    probabilities without re-running the model."""
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
     feature_mean, feature_std = (t.to(device) for t in feature_stats)
     model.eval()
 
-    per_transition = {}
+    results = {}
     with torch.no_grad():
         for transition in ds.schema["y_t1_contract"]["usable_transitions"]:
             x_t_phase_id, y_t1_phase_id = transition["x_t_phase_id"], transition["y_t1_phase_id"]
@@ -233,17 +233,32 @@ def evaluate_model(model, ds, split_masks: dict, phase_id_to_name: dict, feature
             X = normalize_features(x_t.x.to(device), feature_mean, feature_std).unsqueeze(-1)
             edge_index = x_t.edge_index.to(device)
             logits = model(X, edge_index)
-            y_pred = (torch.sigmoid(logits) > 0.5).float().cpu()
+            y_prob = torch.sigmoid(logits).cpu()
 
             label = f"{phase_id_to_name[x_t_phase_id]}->{phase_id_to_name[y_t1_phase_id]}"
-            per_split = {}
-            for split_name, mask in split_masks.items():
-                if mask.sum() == 0:
-                    continue
-                per_split[split_name] = binary_classification_metrics(
-                    y_true[mask].squeeze(-1).tolist(), y_pred[mask].squeeze(-1).tolist()
-                )
-            per_transition[label] = per_split
+            results[label] = (y_true, y_prob)
+    return results
+
+
+def evaluate_model(model, ds, split_masks: dict, phase_id_to_name: dict, feature_stats: tuple, device=None, threshold: float = 0.5) -> dict:
+    """`feature_stats`: the SAME (mean, std) train_model() returned --
+    evaluation must normalize with the train-derived stats, never
+    statistics computed from val/test (that would leak split information
+    into the "fixed" preprocessing). `threshold`: task 4.2 may tune this
+    away from the naive 0.5 default."""
+    probabilities = predict_probabilities(model, ds, feature_stats, phase_id_to_name, device=device)
+
+    per_transition = {}
+    for label, (y_true, y_prob) in probabilities.items():
+        y_pred = (y_prob > threshold).float()
+        per_split = {}
+        for split_name, mask in split_masks.items():
+            if mask.sum() == 0:
+                continue
+            per_split[split_name] = binary_classification_metrics(
+                y_true[mask].squeeze(-1).tolist(), y_pred[mask].squeeze(-1).tolist()
+            )
+        per_transition[label] = per_split
 
     return per_transition
 
