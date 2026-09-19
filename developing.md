@@ -464,6 +464,12 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 
 **rising→peak (predicting flood onset) is the headline result** — the measured version of working.md's core claim, not just an assertion of it: the baseline completely fails (F1=0 everywhere) because a static reactive rule structurally cannot anticipate a future rainfall spike from a currently-dry state, while the GNN learns real spatial+rainfall signal and gets this dramatically right. **peak→receding is more mixed, disclosed honestly rather than only reporting the flattering transition:** the baseline actually matches or beats the GNN there on train/test, because that transition is structurally easy for any model given task 3.4's fusion assigns peak/receding the *identical* flooded set — the baseline's blanket "rain > threshold → flood everything" trivially matches it.
 
+**4.2 done (19 Sep 2026)** — merged via PR [#18](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/18) (`src/models/gnn/tune_hyperparameters.py`). Directly addresses the small-N-of-wards variance task 3.7/4.1 both already disclosed: **k-fold cross-validation (K=4)** over the train+val wards only — official test wards stay completely untouched until the final step, never used for hyperparameter selection. Grid search over learning rate (0.005/0.01/0.02) via CV, then a decision-threshold sweep on pooled held-out CV predictions from the selected LR, then one final retrain + single test evaluation.
+
+**Real result:** selected **LR=0.02** (CV mean flood-relevant F1: 0.673→0.764→**0.768**, ±0.073 fold std — a real, cross-validated improvement over 4.1's untuned default). Selected **threshold=0.1** (down from the naive 0.5). **Final tuned test F1 on rising→peak and peak→receding: 0.982** — up from 4.1's un-tuned 0.93/0.93 on the same test wards.
+
+**A real, disclosed tradeoff, not hidden:** the same global threshold (0.1), tuned specifically for the flood-relevant transitions, **badly hurts `pre_event->rising`** — which should trivially predict "nothing floods" but now predicts *everything* as flooded (test accuracy 0.0, down from 4.1's trivial 1.0). Expected consequence of one global threshold across transitions with wildly different base rates (0% vs. ~93% positive); `pre_event->rising` was deliberately excluded from the tuning objective since it's uninformative for selecting a flood-relevant threshold, but that also means nothing protected it from the chosen one. Worth a per-transition threshold if this model line is developed further (not done here — scope kept to what 3.7/4.1 explicitly flagged as needing tuning).
+
 ---
 
 ## 8. Phase 4 — Model Development & Training (Weeks 6–7)
@@ -471,7 +477,7 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 | # | Task | Owner | Depends on | Status |
 |---|---|---|---|---|
 | 4.1 | Train GraphSAGE + temporal layer (A3TGCN/MPNN-LSTM) on fused ground truth | P3 | 3.4, 3.7 | ✅ |
-| 4.2 | Hyperparameter tuning | P3 | 4.1 | ☐ |
+| 4.2 | Hyperparameter tuning | P3 | 4.1 | ✅ |
 | 4.3 | Run baseline model predictions across all phases | P1 | 3.6, 3.4 | ☐ |
 | 4.4 | Iterate/fix ground-truth issues surfaced during training (feedback loop) | P2 | 4.1 | ☐ |
 | 4.5 | Integrate classifier + gazetteer resolution into one end-to-end Objective 2 pipeline | P4 | 2.10, 3.8 | ☐ |
