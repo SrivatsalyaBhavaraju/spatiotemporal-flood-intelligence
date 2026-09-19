@@ -141,3 +141,49 @@ protocol level and it doesn't exist on the server" — same conclusion
 is approached with a formal data request, this is exactly what to describe:
 the specific dead layer names, so they know what to actually provide.
 
+## `run_sentinel1_change_detection.py` — task 3.1
+
+Objective 1's PRIMARY ground truth: SAR change-detection flood mapping
+between the 24 Nov 2015 (pre-event) and 6 Dec 2015 (post-event) passes task
+1.9 already confirmed reachable in GEE.
+
+**Run:**
+```bash
+python src/ground_truth/run_sentinel1_change_detection.py
+```
+
+**Method:** pre/post VV backscatter (dB, speckle-smoothed) → per-pixel
+change (post − pre) thresholded at `mean − 2·std` (a self-calibrating
+robust-outlier cutoff on THIS pass pair's own noise floor) → JRC Global
+Surface Water permanent-water exclusion → sieve-filtered (GDAL minimum
+mapping unit, 8px) → vectorized, clipped to the study wards.
+
+**Why not a fixed literature dB threshold:** tried UN-SPIDER's commonly-cited
+−17dB VV default first — only 0.08% of the AOI's post-event pixels fall
+below it at all in this dense-urban scene (double-bounce off building
+facades runs backscatter higher than the open/rural terrain that default
+assumes), producing a near-empty ~0.01 km² result. Otsu's method on the
+difference histogram was tried next — picked −0.77dB and flagged 54% of the
+AOI, because the change values are one noisy mode with a skewed tail, not a
+clean bimodal split. Full reasoning and both rejected alternatives' numbers
+are in the script's own docstring and printed in the validation report.
+
+**Result (19 Sep 2026):** 449 flood polygons, 0.60 km² total (~1.3% of the
+AOI), concentrated in 3 of 16 wards (Adyar 0.049 km², Perungudi 0.023 km²,
+Kodambakkam 0.009 km²) — the other 13 wards show no detected flooding.
+Cross-checked against task 0.6's georeferenced NRSC simulation raster: mean
+depth at flood-polygon centroids (2.94m) is higher than at random AOI points
+(2.62m) — corroborating, not proof, given that raster's own ~563m RMSE.
+
+**Read as a floor, not the full picture:** this is a known, expected SAR
+limitation (working.md §1.5), not a bug to chase — dense urban canopy
+genuinely suppresses the water-like backscatter signal, and this pass pair
+brackets the 30 Nov–2 Dec peak rather than capturing it (nearest pass is +4
+days post-peak). Task 3.3 (news/advisory cross-check) is explicitly the
+step that's supposed to catch what SAR misses here — don't treat the
+13 SAR-silent wards as "confirmed dry" when 3.3/3.4 run.
+
+Outputs (`data/processed/ground_truth/`, gitignored): the three downloaded
+intermediate rasters (pre/post VV dB, JRC occurrence — kept for QA/rerun),
+`sentinel1_flood_extent.geojson`, and the validation report.
+
