@@ -294,3 +294,58 @@ Outputs (`data/processed/ground_truth/`, gitignored): `news_cross_check_places.c
 (one row per resolved place), `news_cross_check_segments.geojson` (the
 13,939 flagged segments), and the validation report.
 
+## `fuse_flood_labels.py` — task 3.4
+
+**Phase 3's exit criterion.** Fuses tasks 3.1 (Sentinel-1, primary), 3.2
+(Bhuvan/NRSC, secondary), and 3.3 (news cross-check, secondary) into the
+4-phase flood label scheme (working.md §1.5) — one binary `flood_label`
+per line-graph segment per phase, in exactly the shape task 2.7's
+`schema.json` `y_t1_contract` and task 2.8's `GraphSnapshotDataset.attach_labels()`
+expect.
+
+```bash
+python src/ground_truth/fuse_flood_labels.py
+```
+
+**Fusion rule:** `ever_flooded = intersects(3.1) OR intersects(3.2) OR flagged-by(3.3)`
+— working.md's own rule ("segment labeled flooded if it intersects the
+polygon"), extended across all three sources with a plain OR.
+
+**Phase-assignment decision — confirmed with the user, not derivable from
+the data alone:** none of the three sources are phase-resolved (3.1 is a
+single before/after change detection spanning the whole event; 3.2 has no
+time axis at all; 3.3's real corpus has no reliable per-passage dates, per
+that task's own note). So `ever_flooded` gets assigned to **peak and
+receding only** — pre_event and rising stay dry. Grounded in task 2.5's
+own rainfall numbers: rising totals just 31mm over 2 days vs. peak's
+410mm — a 13x contrast suggesting flooding hadn't materialized yet during
+rising. pre_event is always dry by construction (it's the SAR change
+detection's own "before" reference snapshot).
+
+**Result (19 Sep 2026):** SAR (primary) flags 932 segments (5.4%), Bhuvan
+7,642 (44.4%), news 13,939 (81.1%) — the union is **15,038 segments
+(87.46%) flooded at peak/receding.** That's dominated by the two coarse
+secondary sources, not the primary one — checked and disclosed, not
+hidden: only 241 segments (1.4%) have all 3 sources agreeing, 6,993
+(40.7%) have 2, and 7,804 (45.4%) rest on exactly 1 source alone (mostly
+news' broad ward-level fallback). **Discussed directly with the user
+whether to keep the literal OR rule or require 2+ sources to agree
+instead (which would give a tighter, more discriminating 42.1%) — kept
+the OR rule**, since it's what working.md actually specifies rather than
+a new judgment call layered on top. The per-source columns
+(`sar_flagged`/`bhuvan_flagged`/`news_flagged`/`n_sources_agreeing`) are
+saved in the output specifically so task 4.x can re-derive a stricter
+subset later without re-running this script, if the 87% rate turns out to
+limit what the GNN can learn.
+
+**Validated beyond "does it run"** — an actual integration check against
+task 2.8's real `GraphSnapshotDataset`: `attach_labels()` accepted the
+fused table, and `transition_pairs()` produced exactly the 3 usable
+`(X_t, Y_{t+1})` pairs task 2.7's `schema.json` promises, each with the
+correct `(17195, 6)` / `(17195, 1)` shapes. This is the concrete proof
+that "Phase 4 cannot meaningfully start without fused ground truth"
+(developing.md §7) is now satisfied, not just an assertion.
+
+Outputs (`data/processed/ground_truth/`, gitignored): `fused_flood_labels.csv`
+(68,780 rows = 17,195 segments × 4 phases) and the validation report.
+
