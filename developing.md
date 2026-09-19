@@ -400,8 +400,6 @@ gantt
 
 **Next:** 2.4 (optional impervious %/ward density), 2.9 (finalize gazetteer), and Phase 3 (ground truth fusion, 3.1–3.4 — the critical path per developing.md §7) are the open items. Phase 2's P1/P3 critical path (2.1→2.8) is now fully done.
 
-**Next:** 2.4 (optional impervious %/ward density), 2.8 (data loader — now unblocked by 2.7), 2.9 (finalize gazetteer) are the open Phase 2 tasks.
-
 ---
 
 ## 7. Phase 3 — Ground Truth Construction (Weeks 4–5)
@@ -410,7 +408,7 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 
 | # | Task | Owner | Depends on | Status |
 |---|---|---|---|---|
-| 3.1 | Run Sentinel-1 SAR change detection in GEE (before/after backscatter) | P2 | 1.9, 0.5 | ☐ |
+| 3.1 | Run Sentinel-1 SAR change detection in GEE (before/after backscatter) | P2 | 1.9, 0.5 | ✅ |
 | 3.2 | Extract Bhuvan RISAT flood footprint (if Chennai chosen) | P2 | 0.6 | ☐ |
 | 3.3 | Cross-check with news/traffic advisories; geocode named roads via gazetteer | P2 | 2.9, 3.1, 3.2 | ☐ |
 | 3.4 | **Fuse into 4-phase label scheme** (Pre-event / Rising / Peak / Receding) per segment | P2 | 3.3, 2.2 | ☐ |
@@ -420,6 +418,12 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 | 3.8 | Fine-tune MuRIL/IndicBERT distress classifier on labeled data | P4 | 2.11 | ☐ |
 
 **Exit criterion for Phase 3:** 3.4 checked off — this is the mid-project sync point. Phase 4 cannot meaningfully start without fused ground truth.
+
+**3.1 done (19 Sep 2026)** — merged via PR [#8](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/8) (`src/ground_truth/run_sentinel1_change_detection.py`). Pre/post VV backscatter change (24 Nov pre → 6 Dec 2015 post, task 1.9's confirmed pass pair) thresholded at `mean - 2*std` on the AOI's own change distribution — chosen only after two standard alternatives were tried directly on the real data and rejected: a fixed -17dB literature threshold (UN-SPIDER's common VV default) flagged just 0.08% of valid post-event pixels in this dense-urban scene (near-empty ~0.01 km² result — buildings' double-bounce backscatter runs higher than the open terrain that default assumes), and Otsu's method on the diff histogram flagged 54% of the AOI (no real bimodal split to find; flooding is a minority-class tail on one noisy mode, not two separable populations). Real run against live GEE: **449 flood polygons, 0.60 km² total (~1.3% of the ~46.6 km² AOI), concentrated in only 3 of 16 wards** (Adyar 0.049 km², Perungudi 0.023 km², Kodambakkam 0.009 km²) — the other 13 wards show no SAR-detected flooding. Cross-checked against task 0.6's georeferenced NRSC simulation raster: mean depth at flood-polygon centroids (2.94m) exceeds random-point depth (2.62m) — corroborating, not proof, given that raster's own ~563m RMSE.
+
+**Read the 13 SAR-silent wards as an expected floor, not "confirmed dry":** `working.md` §1.5 already documents SAR's dense-urban-canopy blind spot, and this run is a concrete demonstration of it, not just a citation — task 3.3 (news/advisory cross-check) is explicitly the step meant to catch what SAR misses here, and this before/after pass pair also brackets the 30 Nov–2 Dec peak rather than capturing it (nearest pass is +4 days post-peak). Don't let 3.4's fusion treat SAR silence as a negative label without 3.3's cross-check first.
+
+**Next:** 3.2 (Bhuvan extraction, opportunistic/secondary per task 0.6's earlier downgrade) and 3.5/3.6/3.7 (P1/P3 tasks already unblocked by 2.3/2.8) can proceed in parallel; 3.3 still needs 2.9 (gazetteer) finished first.
 
 ---
 
