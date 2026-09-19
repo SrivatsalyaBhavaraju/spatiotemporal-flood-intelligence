@@ -380,7 +380,7 @@ gantt
 | 2.4 | *(Optional)* Compute impervious %, ward population density | P1 | 2.3 | ☐ |
 | 2.5 | Aggregate rainfall into phase-window dynamic features (`rainfall_t`, `cumulative_rainfall_t`) | P2 | 1.7, 1.8 | ✅ |
 | 2.6 | Attach dynamic features to graph nodes per timestep | P2 | 2.5, 2.2 | ✅ |
-| 2.7 | Define model input schema (`X_t`, `edge_index`, `Y_{t+1}` shapes) | P3 | 2.3, 2.6 | ☐ |
+| 2.7 | Define model input schema (`X_t`, `edge_index`, `Y_{t+1}` shapes) | P3 | 2.3, 2.6 | ✅ |
 | 2.8 | Build graph-snapshot dataset/data-loader class | P3 | 2.7 | ☐ |
 | 2.9 | Finalize gazetteer (`name → coordinate` dict) | P4 | 1.14 | ☐ |
 | 2.10 | Implement fuzzy string matching pipeline (`rapidfuzz`) against gazetteer | P4 | 2.9 | ☐ |
@@ -392,7 +392,11 @@ gantt
 
 **2.3 done (19 Sep 2026)** — merged via PR [#5](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/5) (`src/graph/build_static_features.py`). Re-run end-to-end against real committed Phase 1/2.1/2.2 data before merging (2.1/2.2 regenerated locally since `data/processed/` is gitignored), reproducing the PR's own claimed numbers exactly: 17,195 segments, 0 missing elevation/slope/distance_to_drain values, 0 segments with zero valid raster samples. Elevation came out 0–20m (mean 8.2m) with one segment averaging slightly negative (-3.7m) near the coast/backwaters — consistent with the raw SRTM DEM's own min of -19m (task 1.5), not a bug in this PR. distance_to_drain ranged 0–2091m (mean 498m), consistent with 1.4's finding that drainage tagging is sparse and concentrated along ward-boundary waterways rather than interior segments.
 
-**Next:** 2.4 (optional impervious %/ward density), 2.7 (model input schema), 2.9 (finalize gazetteer) are now unblocked.
+**2.7 done (19 Sep 2026)** — merged via PR [#6](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/6) (`src/models/gnn/build_model_input_schema.py`). Re-run end-to-end against real committed Phase 1/2.1/2.2/2.3/2.5/2.6 data before merging (2.1/2.2/2.5/2.6 regenerated locally since `data/processed/` is gitignored): `X.npy` shape `(4, 17195, 6)`, `edge_index.npy` shape `(2, 48732)` (reused 2.2's own `node_order()`/`edge_index_array()`, directed per that task's traversal-direction design), 0 missing values across all 6 feature columns, edge indices all in range. `X[0,0,:4]` spot-checked byte-for-byte against `static_features.geojson`'s row for the same segment. Real `Y_{t+1}` labels don't exist yet (task 3.4/Phase 3 hasn't started) — no label file was fabricated; `schema.json` documents the shape/dtype/join-key contract 3.4 must satisfy (3 usable transitions: pre_event→rising, rising→peak, peak→receding).
+
+**Note on `working.md` line 90 ("F = 7 features"):** that line counts §1.7's MUST-HAVE list literally, which bundles "road topology" (structural, = edge_index) and "flood label" (= Y_{t+1}) in with the 5 real per-node scalars, and doesn't itemize `length_m` separately even though §1.3's own node-feature list includes it. Actual per-node feature count in `X_t` is F=6, not 7 — cosmetic doc mismatch, not a functional gap, not fixed upstream, just flagged in the script's docstring.
+
+**Next:** 2.4 (optional impervious %/ward density), 2.8 (data loader — now unblocked by 2.7), 2.9 (finalize gazetteer) are the open Phase 2 tasks.
 
 ---
 
