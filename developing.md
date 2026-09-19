@@ -451,13 +451,26 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 
 **Next:** Phase 4 (model training, 4.1+) can now start for real — 3.4's fused labels, 2.8's data loader, 3.6's baseline comparison point, and 3.7's train/val/test split are all ready, and 3.5 confirms the graph itself won't shift under them. **All of Phase 3 (3.1–3.7) is done.**
 
+**4.1 done (19 Sep 2026) — working.md §1.6's core experiment** — merged via PR [#17](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/17) (`src/models/gnn/train_gnn.py`). Temporal framing confirmed with the user before implementing (no working.md spec exists for this): one `A3TGCN(periods=1)`, shared weights, trained by pooling all 3 transitions' `(X_t, Y_t+1)` pairs — matching task 3.6's baseline and task 2.8's `transition_pairs()` design exactly, for an apples-to-apples comparison against the rule-based baseline.
+
+**Two real bugs found and fixed on the first training runs, not hidden:** (1) features were never normalized (raw scales span elevation ~0-20m to distance_to_drain_m ~0-2000m) — the first trained model's output had **exactly zero variance across all 17,195 segments**, verified directly; it had learned to ignore every input and output one constant bias. Fixed with train-split-derived z-score normalization. (2) `pos_weight` was pooled across all 3 transitions instead of computed per transition — pre_event→rising is 100% negative while the other two are ~93% positive (task 3.4), and pooling blended these into one misleading weight. Fixed per-transition.
+
+**Real result — the actual baseline-vs-GNN comparison:**
+
+| Transition | Split | Baseline F1 | GNN F1 |
+|---|---|---|---|
+| **rising→peak** | train/val/test | 0.0 / 0.0 / 0.0 | **0.79 / 0.44 / 0.93** |
+| peak→receding | train/val/test | 0.96 / 0.63 / 0.98 | 0.79 / 0.43 / 0.93 |
+
+**rising→peak (predicting flood onset) is the headline result** — the measured version of working.md's core claim, not just an assertion of it: the baseline completely fails (F1=0 everywhere) because a static reactive rule structurally cannot anticipate a future rainfall spike from a currently-dry state, while the GNN learns real spatial+rainfall signal and gets this dramatically right. **peak→receding is more mixed, disclosed honestly rather than only reporting the flattering transition:** the baseline actually matches or beats the GNN there on train/test, because that transition is structurally easy for any model given task 3.4's fusion assigns peak/receding the *identical* flooded set — the baseline's blanket "rain > threshold → flood everything" trivially matches it.
+
 ---
 
 ## 8. Phase 4 — Model Development & Training (Weeks 6–7)
 
 | # | Task | Owner | Depends on | Status |
 |---|---|---|---|---|
-| 4.1 | Train GraphSAGE + temporal layer (A3TGCN/MPNN-LSTM) on fused ground truth | P3 | 3.4, 3.7 | ☐ |
+| 4.1 | Train GraphSAGE + temporal layer (A3TGCN/MPNN-LSTM) on fused ground truth | P3 | 3.4, 3.7 | ✅ |
 | 4.2 | Hyperparameter tuning | P3 | 4.1 | ☐ |
 | 4.3 | Run baseline model predictions across all phases | P1 | 3.6, 3.4 | ☐ |
 | 4.4 | Iterate/fix ground-truth issues surfaced during training (feedback loop) | P2 | 4.1 | ☐ |
