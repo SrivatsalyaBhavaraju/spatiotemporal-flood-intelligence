@@ -117,29 +117,45 @@ Airport", "Okkiyam Thoraipakkam") mixed with the expected noise from a
 disaster-coverage corpus (person names, government bodies, generic
 institutional phrases — "Prime Minister Modi", "World Bank", "Red Cross").
 
-**OSM verification hit a real, disclosed connectivity problem, not a code
-bug:** every attempt to check those 234 candidates against live OSM data
-failed — `overpass-api.de` and `lz4.overpass-api.de` both timed out at the
-TCP-connect level on this network, and `overpass.kumi.systems` (which did
-connect) rejected the request outright with `413 Request Entity Too Large`
-— a single query listing 234 candidate names is a genuinely large request
-body, not a flaky-network illusion. Tried 3 mirrors × 2 attempts each
-before giving up on this run.
+**OSM verification hit two real, disclosed problems, not code bugs, and
+both are fixed:** (1) a single query listing all 234 candidate names hit
+`413 Request Entity Too Large` on the one mirror that accepted a
+connection — fixed by batching into groups of 25 (`NAME_BATCH_SIZE`); (2)
+`overpass-api.de` and `lz4.overpass-api.de` both consistently hit TCP-
+connect timeouts on this network throughout development, so
+`overpass.kumi.systems` is tried first now.
 
-**Ships a partial, honestly-labeled result rather than blocking on that:**
-`gazetteer_final.csv`/`.json` are the draft gazetteer, unchanged — nothing
-fabricated, nothing silently dropped. All 234 candidates are recorded in
-`gazetteer_finalization_report.json`'s `novel_candidates_unverified` list,
-explicitly **not** claimed as confirmed-absent from OSM — just not yet
-checked. Re-running this script once a working Overpass connection is
-available will attempt to resolve them (ideally in smaller batches, given
-the 413 finding above, rather than one 234-name request).
+**Result after batching (19 Sep 2026):** even the working mirror is
+intermittently flaky — of 10 batches, 6 failed on every mirror/attempt and
+4 succeeded (a real ~50/50 pattern across the run, not a one-off). Of the
+109 candidates actually checked: **5 resolved** to a real OSM feature
+("Chennai Corporation", "Gandhi Road", "Kuberan Nagar", "Royal Enfield",
+"World Bank"), 104 confirmed no match. The remaining 125 candidates
+(batches that failed every attempt) are recorded as unverified, not
+confirmed-absent.
+
+**A real OSM match isn't automatically a genuine flood-relevant place —
+disclosed, not silently filtered:** "World Bank" and "Royal Enfield" almost
+certainly matched a coincidentally-named local shop and a motorcycle
+showroom respectively — the distress text likely meant the international
+org and the rescue-vehicle brand, not those specific OSM features. Kept in
+the output anyway rather than hand-excluded: the whole point of using OSM
+as the truth filter was avoiding a hand-curated semantic denylist, and
+picking off inconvenient matches after the fact would just be that
+denylist under a different name. `resolved_examples` in the report is
+short enough to spot-check by hand before task 2.10 leans on it.
+
+**Ships a partial, honestly-labeled result, not blocked on the remaining
+flakiness:** `gazetteer_final.csv`/`.json` include the 5 newly-resolved
+rows; nothing fabricated for the 125 still-unverified candidates, and
+nothing silently dropped. Re-running this script will only re-attempt what
+`novel_candidates_unverified` still lists.
 
 **Outputs** (`data/raw/gazetteer/` — committed, like the draft, not
 gitignored; see task 1.13/1.14's own commit for why):
 
 | File | Contents |
 |---|---|
-| `gazetteer_final.csv` | Draft rows + any OSM-verified new candidates (0 this run) |
+| `gazetteer_final.csv` | Draft rows + OSM-verified new candidates (5 this run) |
 | `gazetteer_final.json` | Flat `{name: [lon, lat]}` dict — task 2.9's literal deliverable for task 2.10's fuzzy matcher |
 | `gazetteer_finalization_report.json` | Candidate counts, resolved/dropped/**unverified** examples |

@@ -1,4 +1,9 @@
 name,name_ta,type,subtype,ward_no,lon,lat
+Chennai Corporation,,distress_text_candidate,,,80.2210925770769,13.0442058
+Gandhi Road,,distress_text_candidate,,178.0,80.2229117,12.9864532
+Kuberan Nagar,,distress_text_candidate,,178.0,80.21275942977276,12.9723918
+Royal Enfield,,distress_text_candidate,,176.0,80.2635746,13.0078528
+World Bank,,distress_text_candidate,,180.0,80.24437259453944,12.9838992
 AMM School,,landmark,school,172.0,80.24166166017442,13.01899485
 ARK Hospital,,landmark,hospital,179.0,80.2293536,12.9856999
 Aathichudy Special School,,landmark,school,175.0,80.252718,13.0048641

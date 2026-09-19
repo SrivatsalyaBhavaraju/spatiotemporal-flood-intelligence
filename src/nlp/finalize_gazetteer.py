@@ -53,17 +53,37 @@ single-word colloquial place name (if any exists beyond what OSM's own
 worth revisiting only if task 2.10's fuzzy-match precision turns out to
 need it.
 
-Graceful degradation if OSM is unreachable: step 1 (re-fetching task 1.13's
-source pages) and candidate extraction/classification always run and are
-saved. If every Overpass mirror fails (see OVERPASS_MIRRORS -- this
-network's connectivity to them proved intermittent during development,
-timing out at the TCP-connect level on some hosts and at the query-read
-level on others), this script does NOT block on that -- it ships
-gazetteer_final.* built from the draft alone (nothing silently added) and
-records the novel candidates as UNVERIFIED (not confirmed-absent) in
-gazetteer_finalization_report.json's `novel_candidates_unverified` field,
-so task 2.10/3.3 aren't blocked waiting on a flaky network, and re-running
-this script later (once connectivity cooperates) fills that gap in.
+A real OSM name match isn't automatically a genuine flood-relevant place --
+disclosed, not silently filtered: a real run (19 Sep 2026) resolved "World
+Bank" and "Royal Enfield" to actual OSM features inside the study wards
+(most plausibly a coincidentally-named local shop and a motorcycle
+showroom respectively, not what those distress-text mentions meant --
+almost certainly the international org and the motorcycle brand used for
+flood rescue, per common reporting patterns). Kept in the output rather
+than hand-excluded, on purpose: the whole point of using OSM as the truth
+filter (see step 4 above) was avoiding a hand-curated semantic denylist,
+and excluding these two on my own judgment would just be that denylist by
+another name. `resolved_examples` in the report is short (5 entries this
+run) specifically so a human can spot-check it before task 2.10 leans on
+it, the same way task 1.14's own draft was "spot-checked and correct"
+rather than trusted blindly.
+
+Batching (NAME_BATCH_SIZE): a single query listing all 234 real candidate
+names hit `413 Request Entity Too Large` on the one Overpass mirror that
+accepted a connection during development -- the actual root cause
+underneath what first looked like generic network flakiness. Candidates
+are checked in batches of NAME_BATCH_SIZE instead of one giant request.
+
+Graceful degradation, at the batch level, if OSM is unreachable: step 1
+(re-fetching task 1.13's source pages) and candidate extraction/
+classification always run and are saved regardless. Each batch that fails
+on every OVERPASS_MIRRORS entry does NOT block the others -- the script
+ships gazetteer_final.* built from the draft plus whatever batches DID
+succeed (nothing silently added or dropped), and records candidates from
+any failed batch as UNVERIFIED (not confirmed-absent) in
+gazetteer_finalization_report.json's `novel_candidates_unverified` field.
+This means task 2.10/3.3 are never blocked waiting on a flaky network, and
+re-running this script later re-attempts only what's still unverified.
 
 Usage:
     python src/nlp/finalize_gazetteer.py
@@ -184,49 +204,61 @@ def classify_candidates(candidates: list[str], existing_names: set) -> tuple:
 # OSM resolution (network-dependent -- validated by a real run, not mocked)
 # --------------------------------------------------------------------------
 
-# Public Overpass mirrors to try in order -- this network's connection to
-# the default (bare overpass-api.de) proved intermittently unreachable at
-# the TCP-connect level while this task was developed (connect timeouts,
-# not slow responses -- see developing.md's task 2.9 notes), and that
-# turned out to be flaky moment-to-moment rather than tied to one specific
-# host, so this retries across mirrors AND attempts, not just one or the
-# other.
+# Public Overpass mirrors to try, in order. `overpass.kumi.systems` first:
+# during development it was the only one of the three that ever actually
+# accepted a TCP connection on this network (the other two consistently
+# hit connect-level timeouts, not slow responses -- see developing.md's
+# task 2.9 notes) -- trying the two broken ones first would waste up to two
+# minutes per batch before ever reaching the one that works.
 OVERPASS_MIRRORS = [
+    "https://overpass.kumi.systems/api",
     "https://overpass-api.de/api",
     "https://lz4.overpass-api.de/api",
-    "https://overpass.kumi.systems/api",
 ]
 FETCH_RETRIES_PER_MIRROR = 2
 
+# A single query listing all 234 real candidate names hit `413 Request
+# Entity Too Large` on the one mirror that accepted a connection during
+# development -- that was the actual root cause underneath the earlier
+# connectivity trouble, not more flakiness. Batching avoids it.
+NAME_BATCH_SIZE = 25
 
-def fetch_named_features_index(aoi_polygon, candidate_names: list) -> dict:
-    """ONE bulk Overpass query for OSM features within `aoi_polygon` named
-    exactly one of `candidate_names`, returned as {name.lower(): (lon, lat)}
-    (first occurrence wins for a repeated name). A single targeted request,
-    not one per candidate and not an unbounded "every named feature" pull --
-    an earlier version of this function fetched every named feature in the
-    AOI (`tags={"name": True}`), which timed out server-side even on a
-    mirror that accepted the connection (the query itself was too broad/
-    expensive, not just a connectivity problem); scoping the `name` filter
-    to the actual candidate list is both what we need and much cheaper for
-    the server to evaluate. Retries across OVERPASS_MIRRORS on failure (see
-    that constant's note on why -- this network's connection to these hosts
-    proved intermittently unreachable during development).
+
+def fetch_named_features_index(aoi_polygon, candidate_names: list) -> tuple:
+    """Query OSM (Overpass) for features within `aoi_polygon` named one of
+    `candidate_names`, batched (see NAME_BATCH_SIZE). Returns
+    (index, unresolved_names): `index` is {name.lower(): (lon, lat)} built
+    from every batch that was successfully queried (whether or not each
+    individual name matched a feature); `unresolved_names` lists candidates
+    from batches that failed on every mirror/attempt -- those were never
+    actually checked against OSM, so the caller must not report them as
+    "confirmed no match" (see main()'s handling of this).
     """
+    index: dict = {}
+    unresolved_names: list = []
+    batches = [candidate_names[i:i + NAME_BATCH_SIZE] for i in range(0, len(candidate_names), NAME_BATCH_SIZE)]
+    for batch_num, batch in enumerate(batches, 1):
+        try:
+            batch_index = _fetch_one_batch(aoi_polygon, batch)
+            index.update(batch_index)
+            print(f"    batch {batch_num}/{len(batches)} ({len(batch)} names) OK -> {len(batch_index)} matched")
+        except Phase2GazetteerError as e:
+            unresolved_names.extend(batch)
+            print(f"    batch {batch_num}/{len(batches)} ({len(batch)} names) FAILED on every mirror: {e}")
+    return index, unresolved_names
+
+
+def _fetch_one_batch(aoi_polygon, batch_names: list) -> dict:
     last_error = None
     for mirror in OVERPASS_MIRRORS:
         ox.settings.overpass_url = mirror
         for attempt in range(FETCH_RETRIES_PER_MIRROR):
             try:
-                gdf = ox.features_from_polygon(aoi_polygon, tags={"name": candidate_names})
+                gdf = ox.features_from_polygon(aoi_polygon, tags={"name": batch_names})
                 return _build_named_index(gdf)
             except Exception as e:
                 last_error = e
-                print(f"    [{mirror}] attempt {attempt + 1}/{FETCH_RETRIES_PER_MIRROR} failed: {type(e).__name__}")
-    raise Phase2GazetteerError(
-        f"Could not reach any Overpass mirror ({OVERPASS_MIRRORS}) after retries. "
-        f"Last error: {last_error}"
-    )
+    raise Phase2GazetteerError(f"all mirrors failed; last error: {last_error}")
 
 
 def _build_named_index(gdf) -> dict:
@@ -338,28 +370,27 @@ def main():
     print(f"  -> {len(all_candidates)} raw candidate mentions, {covered_count} already covered by the draft gazetteer")
     print(f"  -> {len(novel)} unique NOVEL candidates to check against OSM: {novel[:10]}{'...' if len(novel) > 10 else ''}")
 
-    print(f"\nFetching OSM features within the study wards named one of the {len(novel)} candidates (ONE bulk query) ...")
-    osm_resolution_available = True
-    resolved, failed = [], []
-    try:
-        named_index = fetch_named_features_index(aoi, novel)
-        print(f"  -> {len(named_index)} uniquely-named features indexed")
+    n_batches = (len(novel) + NAME_BATCH_SIZE - 1) // NAME_BATCH_SIZE
+    print(f"\nFetching OSM features within the study wards named one of the {len(novel)} candidates "
+          f"({n_batches} batch(es) of up to {NAME_BATCH_SIZE}, avoiding the 413 a single big query hit) ...")
+    named_index, unresolved = fetch_named_features_index(aoi, novel)
+    checked = [n for n in novel if n not in unresolved]
+    print(f"  -> {len(named_index)} uniquely-named features indexed; {len(checked)}/{len(novel)} candidates actually checked")
 
-        print(f"\nResolving {len(novel)} novel candidates against that index (local lookups, no more network calls) ...")
-        for i, name in enumerate(novel, 1):
-            coord = geocode_candidate(name, named_index)
-            if coord:
-                resolved.append({"name": name, "lon": coord[0], "lat": coord[1]})
-                print(f"  [{i}/{len(novel)}] RESOLVED  {name} -> {coord}")
-            else:
-                failed.append(name)
-        print(f"\n{len(resolved)} candidate(s) resolved to a real OSM feature, {len(failed)} confirmed no match in study wards")
-    except Phase2GazetteerError as e:
-        osm_resolution_available = False
-        print(f"\nWARNING: OSM resolution unavailable ({e})", file=sys.stderr)
-        print("Falling back: shipping the finalized gazetteer WITHOUT verifying novel candidates against OSM.")
-        print(f"All {len(novel)} candidates are UNVERIFIED, not confirmed-absent -- see the report's")
-        print("`novel_candidates_unverified` list; re-run once connectivity to an Overpass mirror works.")
+    resolved, failed = [], []
+    print(f"\nResolving the {len(checked)} checked candidates against that index (local lookups) ...")
+    for i, name in enumerate(checked, 1):
+        coord = geocode_candidate(name, named_index)
+        if coord:
+            resolved.append({"name": name, "lon": coord[0], "lat": coord[1]})
+            print(f"  [{i}/{len(checked)}] RESOLVED  {name} -> {coord}")
+        else:
+            failed.append(name)
+    print(f"\n{len(resolved)} candidate(s) resolved to a real OSM feature, {len(failed)} confirmed no match in study wards")
+    osm_resolution_available = len(checked) > 0
+    if unresolved:
+        print(f"WARNING: {len(unresolved)} candidate(s) could not be checked (every mirror failed for their batch) "
+              f"-- see the report's `novel_candidates_unverified` list.", file=sys.stderr)
 
     new_rows = build_new_rows(resolved, wards)
     final_gaz = pd.concat([draft, new_rows], ignore_index=True)
@@ -380,11 +411,12 @@ def main():
         "already_covered_mentions": covered_count,
         "novel_unique_candidates": len(novel),
         "osm_resolution_available": osm_resolution_available,
+        "candidates_actually_checked": len(checked),
         "resolved_to_osm_feature": len(resolved),
         "resolved_examples": resolved[:20],
         "dropped_no_osm_match": len(failed),
         "dropped_examples": failed[:20],
-        "novel_candidates_unverified": [] if osm_resolution_available else novel,
+        "novel_candidates_unverified": unresolved,
         "final_gazetteer_rows": int(len(final_gaz)),
         "final_unique_names": len(name_coord_dict),
     }

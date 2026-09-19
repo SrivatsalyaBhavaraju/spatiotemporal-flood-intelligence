@@ -1,4 +1,20 @@
 {
+  "Teachers Colony": [
+    80.266185,
+    12.983369
+  ],
+  "Thiruvanmiyur": [
+    80.264421,
+    12.985895
+  ],
+  "Tiruvalluvar Nagar": [
+    80.262537,
+    12.977056
+  ],
+  "Todhunter Nagar": [
+    80.230809,
+    13.022615
+  ],
   "Udhayam Nagar": [
     80.23217,
     12.979168
@@ -43,9 +59,25 @@
     80.220988,
     12.975743
   ],
-  "Vikram Sarabhai Industrial Estate": [
-    80.250875,
-    12.980955
+  "Ramalinga Nagar": [
+    80.205851,
+    12.967594
+  ],
+  "SIDCO Industrial Estate": [
+    80.209121,
+    13.01407
+  ],
+  "Saidapet": [
+    80.223954,
+    13.020817
+  ],
+  "Seethapathy Nagar": [
+    80.227033,
+    12.981951
+  ],
+  "Seshadripuram": [
+    80.230669,
+    12.979839
   ],
   "Seva Nagar Velachery": [
     80.229321,
@@ -87,21 +119,25 @@
     80.240407,
     12.984907
   ],
-  "Teachers Colony": [
-    80.266185,
-    12.983369
+  "Little Mount": [
+    80.226688,
+    13.014186
   ],
-  "Thiruvanmiyur": [
-    80.264421,
-    12.985895
+  "MRC Nagar": [
+    80.270652,
+    13.019669
   ],
-  "Tiruvalluvar Nagar": [
-    80.262537,
-    12.977056
+  "Maduvankarai": [
+    80.210656,
+    13.002022
   ],
-  "Todhunter Nagar": [
-    80.230809,
-    13.022615
+  "NGO Colony": [
+    80.20776,
+    12.994895
+  ],
+  "Nava Bharath Colony": [
+    80.266667,
+    12.990005
   ],
   "Navaratna Gardens": [
     80.201086,
@@ -147,25 +183,25 @@
     80.261062,
     13.024366
   ],
-  "Ramalinga Nagar": [
-    80.205851,
-    12.967594
+  "Indira Nagar": [
+    80.25242,
+    12.996315
   ],
-  "SIDCO Industrial Estate": [
-    80.209121,
-    13.01407
+  "JagannathaPuram": [
+    80.221892,
+    12.984682
   ],
-  "Saidapet": [
-    80.223954,
-    13.020817
+  "Jeevarathinam Nagar": [
+    80.260695,
+    13.002057
   ],
-  "Seethapathy Nagar": [
-    80.227033,
-    12.981951
+  "Jothiammal Nagar": [
+    80.228897,
+    13.019511
   ],
-  "Seshadripuram": [
-    80.230669,
-    12.979839
+  "Kalaimagal Nagar": [
+    80.205427,
+    13.02529
   ],
   "Kalakshetra Colony": [
     80.266422,
@@ -211,25 +247,21 @@
     80.212138,
     12.985429
   ],
-  "Little Mount": [
-    80.226688,
-    13.014186
+  "Balaji Nagar": [
+    80.190572,
+    12.972164
   ],
-  "MRC Nagar": [
-    80.270652,
-    13.019669
+  "Besant Nagar": [
+    80.268226,
+    12.999691
   ],
-  "Maduvankarai": [
-    80.210656,
-    13.002022
+  "Bhuvaneswary Nagar": [
+    80.221953,
+    12.96991
   ],
-  "NGO Colony": [
-    80.20776,
-    12.994895
-  ],
-  "Nava Bharath Colony": [
-    80.266667,
-    12.990005
+  "Central Government Officers Quarters, General Pool Accomodation": [
+    80.265283,
+    13.002196
   ],
   "Damodarapuram": [
     80.262981,
@@ -275,26 +307,6 @@
     80.220365,
     13.00871
   ],
-  "Indira Nagar": [
-    80.25242,
-    12.996315
-  ],
-  "JagannathaPuram": [
-    80.221892,
-    12.984682
-  ],
-  "Jeevarathinam Nagar": [
-    80.260695,
-    13.002057
-  ],
-  "Jothiammal Nagar": [
-    80.228897,
-    13.019511
-  ],
-  "Kalaimagal Nagar": [
-    80.205427,
-    13.02529
-  ],
   "AGS Officers Colony": [
     80.209705,
     12.97897
@@ -327,49 +339,13 @@
     80.253094,
     13.003406
   ],
-  "Balaji Nagar": [
-    80.190572,
-    12.972164
+  "Vikram Sarabhai Industrial Estate": [
+    80.250875,
+    12.980955
   ],
-  "Besant Nagar": [
-    80.268226,
-    12.999691
-  ],
-  "Bhuvaneswary Nagar": [
-    80.221953,
-    12.96991
-  ],
-  "Central Government Officers Quarters, General Pool Accomodation": [
-    80.265283,
-    13.002196
-  ],
-  "AMM School": [
-    80.241662,
-    13.018995
-  ],
-  "Athipathi Hospital and Research Centre": [
-    80.2222,
-    12.976271
-  ],
-  "Asian College of Journalism": [
-    80.24628,
-    12.996162
-  ],
-  "Ashwini Hospital": [
-    80.259959,
-    12.989017
-  ],
-  "Ashtalakshmi Temple": [
-    80.270367,
-    12.992552
-  ],
-  "Arupadai Veedu Temple Complex": [
-    80.268602,
-    12.989065
-  ],
-  "Arulmigu Shri Valampuri Selva Vinayagar Aalayam": [
-    80.235111,
-    12.982334
+  "Kalakshetra School of Fine Arts": [
+    80.265998,
+    12.987424
   ],
   "Arulmigu Pidari Sri Ilan Kaliamman Temple": [
     80.226319,
@@ -395,97 +371,97 @@
     80.229354,
     12.9857
   ],
-  "Athipathy Hospitals": [
-    80.22219,
-    12.976434
+  "AMM School": [
+    80.241662,
+    13.018995
   ],
-  "Appasamy Krishna Hospital and Medical Research Centre": [
-    80.220502,
-    12.975865
+  "World Bank": [
+    80.244373,
+    12.983899
   ],
-  "Balaji Hospital (P) Ltd": [
-    80.206086,
-    13.007382
+  "Royal Enfield": [
+    80.263575,
+    13.007853
   ],
-  "Bala Vidya Mandir": [
-    80.250789,
-    13.009866
+  "Kuberan Nagar": [
+    80.212759,
+    12.972392
   ],
-  "Bala Saravana Matriculation School": [
-    80.210421,
-    12.983159
+  "Gandhi Road": [
+    80.222912,
+    12.986453
   ],
-  "Ayesha Mosque": [
-    80.240915,
-    13.025376
+  "Arulmigu Karaneeswarar Temple": [
+    80.223381,
+    13.024764
   ],
-  "Ayappan Koil": [
-    80.268082,
-    13.018931
-  ],
-  "Avvai Home": [
-    80.261212,
-    13.009027
-  ],
-  "Apollo Specialty Hospitals Private Limited": [
-    80.271101,
-    13.017796
-  ],
-  "Annai Velankanni Shrine": [
-    80.270034,
-    12.995178
-  ],
-  "Annai Velankanni College": [
-    80.21486,
-    13.019345
-  ],
-  "Annai Velankanni Church": [
-    80.270822,
-    12.995036
-  ],
-  "Anna Institute of Management": [
-    80.253478,
-    13.018597
-  ],
-  "Anna High School": [
-    80.268432,
-    13.000598
+  "Chennai Corporation": [
+    80.221093,
+    13.044206
   ],
   "Anna GEM Science Park Matriculation Higher Secondary School": [
     80.238892,
     13.015957
   ],
+  "Avvai Home": [
+    80.261212,
+    13.009027
+  ],
+  "Athipathy Hospitals": [
+    80.22219,
+    12.976434
+  ],
+  "Athipathi Hospital and Research Centre": [
+    80.2222,
+    12.976271
+  ],
+  "Asian College of Journalism": [
+    80.24628,
+    12.996162
+  ],
+  "Ashwini Hospital": [
+    80.259959,
+    12.989017
+  ],
+  "Ashtalakshmi Temple": [
+    80.270367,
+    12.992552
+  ],
   "American International School Chennai": [
     80.246583,
     12.982243
   ],
-  "Balakrishna Eye Hospital": [
-    80.226987,
-    13.027444
+  "Ambedkar Law University - School of Excellence": [
+    80.264261,
+    13.016489
   ],
-  "M N Eye Hospital": [
-    80.26036,
-    12.996767
+  "Alagappa College of Technology": [
+    80.238333,
+    13.007885
   ],
-  "Lord Vinayagar Temple": [
-    80.201172,
-    12.969949
+  "Akshaya": [
+    80.222484,
+    12.978798
   ],
-  "Lord Perumal and Anjaneyar Temple": [
-    80.201442,
-    12.967643
+  "Advent christian conference of india": [
+    80.226089,
+    12.985891
   ],
-  "Lord Ganesh Temple": [
-    80.26365,
-    13.023625
+  "Advent Primary School": [
+    80.245061,
+    13.018865
   ],
-  "Lets do Something - Activity center": [
-    80.221575,
-    12.975837
+  "Arulmigu Shri Valampuri Selva Vinayagar Aalayam": [
+    80.235111,
+    12.982334
   ],
-  "Lakshmi Maternity Hospital": [
-    80.252844,
-    12.993867
+  "Arupadai Veedu Temple Complex": [
+    80.268602,
+    12.989065
+  ],
+  "Ayappan Koil": [
+    80.268082,
+    13.018931
   ],
   "Kurasani Peer Masjid": [
     80.256489,
@@ -515,33 +491,33 @@
     80.219931,
     13.020019
   ],
-  "Kalakshetra School of Fine Arts": [
-    80.265998,
-    12.987424
+  "Prince Srivari Vidyalaya": [
+    80.194282,
+    12.969047
   ],
   "KRMM School and Kumararani Meena Mutthaiah College": [
     80.25183,
     13.010786
   ],
-  "National Institute of Fashion Technology - NIFT Chennai": [
-    80.251574,
-    12.984041
+  "Jumma Masjid": [
+    80.201295,
+    13.020252
   ],
-  "Nataraja Devara Sabai": [
-    80.224945,
-    13.023587
+  "Jayam Polyclinc": [
+    80.260334,
+    12.995856
   ],
-  "Nandhini Hospital": [
-    80.224793,
-    12.978471
+  "Iswarya Fertility Center": [
+    80.250483,
+    13.006489
   ],
-  "Nagamariamman Puthu Koil": [
-    80.253609,
-    13.011886
+  "Institute for Energy Studies (IES)": [
+    80.232651,
+    13.010652
   ],
-  "NGO Colony Bus Terminus": [
-    80.206816,
-    12.994789
+  "Infant Jesus Shrine": [
+    80.211311,
+    13.015156
   ],
   "Muthumariamman temple": [
     80.255019,
@@ -587,25 +563,25 @@
     80.247082,
     13.006241
   ],
-  "Peeliamman Temple": [
-    80.237356,
-    12.993385
+  "M N Eye Hospital": [
+    80.26036,
+    12.996767
   ],
-  "Patrician College of Arts & Science": [
-    80.24992,
-    13.013557
+  "Lord Vinayagar Temple": [
+    80.201172,
+    12.969949
   ],
-  "Pathala Vigneshvarar Temple": [
-    80.19076,
-    12.971157
+  "Lord Perumal and Anjaneyar Temple": [
+    80.201442,
+    12.967643
   ],
-  "Panchamukha Hanuman Temple": [
-    80.238068,
-    12.982592
+  "Lord Ganesh Temple": [
+    80.26365,
+    13.023625
   ],
-  "Pamban Sitthar Samadhi": [
-    80.263319,
-    12.990137
+  "Lets do Something - Activity center": [
+    80.221575,
+    12.975837
   ],
   "Palani Balaji Fertility Centre": [
     80.223508,
@@ -651,33 +627,33 @@
     80.249436,
     12.987716
   ],
-  "Ramar Temple": [
-    80.209043,
-    12.967484
+  "National Institute of Fashion Technology - NIFT Chennai": [
+    80.251574,
+    12.984041
   ],
-  "Raja Muthiah School": [
-    80.261259,
-    13.022492
+  "Nataraja Devara Sabai": [
+    80.224945,
+    13.023587
   ],
-  "R.G. Stone Urological Research Institute": [
-    80.227829,
-    13.024079
+  "Nandhini Hospital": [
+    80.224793,
+    12.978471
   ],
-  "Puzhuthivakkam Bus Stand": [
-    80.202931,
-    12.97398
+  "Nagamariamman Puthu Koil": [
+    80.253609,
+    13.011886
   ],
-  "Puzhudivakkam": [
-    80.205424,
-    12.977158
+  "NGO Colony Bus Terminus": [
+    80.206816,
+    12.994789
   ],
   "Promed Hospital": [
     80.258257,
     12.975142
   ],
-  "Prince Srivari Vidyalaya": [
-    80.194282,
-    12.969047
+  "Lakshmi Maternity Hospital": [
+    80.252844,
+    12.993867
   ],
   "Prince Matric Hr Sec School": [
     80.194431,
@@ -715,25 +691,25 @@
     80.255704,
     12.997472
   ],
-  "Sarswathi Hospital": [
-    80.206773,
-    12.965385
+  "Peeliamman Temple": [
+    80.237356,
+    12.993385
   ],
-  "Santosh Hospital Pvt Ltd": [
-    80.26919,
-    12.995229
+  "Patrician College of Arts & Science": [
+    80.24992,
+    13.013557
   ],
-  "Sankara School": [
-    80.259954,
-    12.976521
+  "Pathala Vigneshvarar Temple": [
+    80.19076,
+    12.971157
   ],
-  "Saint Patricks HSS": [
-    80.250948,
-    13.012072
+  "Panchamukha Hanuman Temple": [
+    80.238068,
+    12.982592
   ],
-  "Saint Michaels Academy": [
-    80.250325,
-    13.010607
+  "Pamban Sitthar Samadhi": [
+    80.263319,
+    12.990137
   ],
   "Saint Louis School for the Deaf and Blind": [
     80.249467,
@@ -775,25 +751,25 @@
     80.257298,
     13.009872
   ],
-  "Sri Bhaktha Anjaneyar Sannadhi of Sri Prasanna venkatesa perumal temple": [
-    80.219621,
-    13.022378
+  "Ramar Temple": [
+    80.209043,
+    12.967484
   ],
-  "Sri Angalaparameswari temple": [
-    80.222421,
-    13.022239
+  "Raja Muthiah School": [
+    80.261259,
+    13.022492
   ],
-  "Sri Anantha Padmanaba Swamy Temple": [
-    80.257277,
-    13.007804
+  "R.G. Stone Urological Research Institute": [
+    80.227829,
+    13.024079
   ],
-  "Sri Adhinath jain Temple": [
-    80.224647,
-    13.022975
+  "Puzhuthivakkam Bus Stand": [
+    80.202931,
+    12.97398
   ],
-  "Spastic Society of india": [
-    80.250005,
-    12.984844
+  "Puzhudivakkam": [
+    80.205424,
+    12.977158
   ],
   "Sivasakthi Matriculation School": [
     80.218515,
@@ -835,25 +811,25 @@
     80.220697,
     13.020153
   ],
-  "Sri Sivasubramiya Swamy Temple": [
-    80.224835,
-    13.024067
+  "Sarswathi Hospital": [
+    80.206773,
+    12.965385
   ],
-  "Sri Sivasubramanya Swami Temple (Sengundha Kottam)": [
-    80.220112,
-    13.021928
+  "Santosh Hospital Pvt Ltd": [
+    80.26919,
+    12.995229
   ],
-  "Sri Sankara Vidyashram HSS": [
-    80.257036,
-    12.985271
+  "Sankara School": [
+    80.259954,
+    12.976521
   ],
-  "Sri Sankara Senior Secondary School": [
-    80.260985,
-    13.009919
+  "Saint Patricks HSS": [
+    80.250948,
+    13.012072
   ],
-  "Sri Ramanjayaneya Temple": [
-    80.215909,
-    13.020005
+  "Saint Michaels Academy": [
+    80.250325,
+    13.010607
   ],
   "Sri Prasanna Venkatesa Narasimha Perumal Temple": [
     80.216677,
@@ -899,25 +875,25 @@
     80.217915,
     12.977562
   ],
-  "Sunshine Senior Secondary School": [
-    80.209207,
-    12.973539
+  "Sri Bhaktha Anjaneyar Sannadhi of Sri Prasanna venkatesa perumal temple": [
+    80.219621,
+    13.022378
   ],
-  "Sukrthi Nursing Home": [
-    80.208296,
-    12.971029
+  "Sri Angalaparameswari temple": [
+    80.222421,
+    13.022239
   ],
-  "Subramanya Temple": [
-    80.204976,
-    12.985279
+  "Sri Anantha Padmanaba Swamy Temple": [
+    80.257277,
+    13.007804
   ],
-  "Starlight Hospitals Pvt Ltd": [
-    80.260158,
-    12.986453
+  "Sri Adhinath jain Temple": [
+    80.224647,
+    13.022975
   ],
-  "Starlight Abacus School": [
-    80.261384,
-    13.007477
+  "Spastic Society of india": [
+    80.250005,
+    12.984844
   ],
   "St.Johns English School": [
     80.266308,
@@ -963,25 +939,25 @@
     80.221413,
     13.021436
   ],
-  "Thiruvanmiyur MTC Terminus": [
-    80.259347,
-    12.98681
+  "Sri Sivasubramiya Swamy Temple": [
+    80.224835,
+    13.024067
   ],
-  "Thiruvanmiyur Corporation School": [
-    80.261079,
-    12.98135
+  "Sri Sivasubramanya Swami Temple (Sengundha Kottam)": [
+    80.220112,
+    13.021928
   ],
-  "Thirumudi Vinayagar Temple": [
-    80.25904,
-    12.981403
+  "Sri Sankara Vidyashram HSS": [
+    80.257036,
+    12.985271
   ],
-  "The School Krishnamurti Foundation India": [
-    80.263396,
-    13.006122
+  "Sri Sankara Senior Secondary School": [
+    80.260985,
+    13.009919
   ],
-  "The Institute of Road Transport": [
-    80.244415,
-    12.982493
+  "Sri Ramanjayaneya Temple": [
+    80.215909,
+    13.020005
   ],
   "The Institute of Mathematical Sciences": [
     80.247014,
@@ -1011,25 +987,25 @@
     80.262887,
     13.01627
   ],
-  "Vidya Ratna PTS Matriculation Higher Secondary School": [
-    80.25834,
-    13.000146
+  "Sunshine Senior Secondary School": [
+    80.209207,
+    12.973539
   ],
-  "Vidhya Sagara Brotherhood aided Middle School": [
-    80.226096,
-    13.024141
+  "Sukrthi Nursing Home": [
+    80.208296,
+    12.971029
   ],
-  "Vembaliamman Koil": [
-    80.267953,
-    12.983405
+  "Subramanya Temple": [
+    80.204976,
+    12.985279
   ],
-  "Velachery SABA Hospital": [
-    80.229892,
-    12.986273
+  "Starlight Hospitals Pvt Ltd": [
+    80.260158,
+    12.986453
   ],
-  "Velachery K S Hospital": [
-    80.211402,
-    12.976391
+  "Starlight Abacus School": [
+    80.261384,
+    13.007477
   ],
   "Velachery": [
     80.219508,
@@ -1075,25 +1051,25 @@
     80.251587,
     12.988982
   ],
-  "சைதாப்பேட்டை அரசு மருத்துவமனை": [
-    80.224051,
-    13.020446
+  "Thiruvanmiyur MTC Terminus": [
+    80.259347,
+    12.98681
   ],
-  "சைதாப்பேட்டை": [
-    80.228124,
-    13.023995
+  "Thiruvanmiyur Corporation School": [
+    80.261079,
+    12.98135
   ],
-  "சின்னமலை": [
-    80.224167,
-    13.014663
+  "Thirumudi Vinayagar Temple": [
+    80.25904,
+    12.981403
   ],
-  "ஆந்திர மாநில சபா": [
-    80.259566,
-    13.01743
+  "The School Krishnamurti Foundation India": [
+    80.263396,
+    13.006122
   ],
-  "அருள்மிகு வான்மீகி முனிவர் திருக்கோயில்": [
-    80.259717,
-    12.986396
+  "The Institute of Road Transport": [
+    80.244415,
+    12.982493
   ],
   "அண்ணா பல்கலைக்கழகம்": [
     80.235374,
@@ -1139,25 +1115,57 @@
     80.266,
     12.998973
   ],
-  "Jumma Masjid": [
-    80.201295,
-    13.020252
+  "Vidya Ratna PTS Matriculation Higher Secondary School": [
+    80.25834,
+    13.000146
   ],
-  "Jayam Polyclinc": [
-    80.260334,
-    12.995856
+  "Vidhya Sagara Brotherhood aided Middle School": [
+    80.226096,
+    13.024141
   ],
-  "Iswarya Fertility Center": [
-    80.250483,
-    13.006489
+  "Vembaliamman Koil": [
+    80.267953,
+    12.983405
   ],
-  "Institute for Energy Studies (IES)": [
-    80.232651,
-    13.010652
+  "Velachery SABA Hospital": [
+    80.229892,
+    12.986273
   ],
-  "Infant Jesus Shrine": [
-    80.211311,
-    13.015156
+  "Velachery K S Hospital": [
+    80.211402,
+    12.976391
+  ],
+  "வழக்கு தீர்க்கும் ஸ்ரீ வராஹி வள்ளி அம்மன் ஆலயம்": [
+    80.226861,
+    13.013048
+  ],
+  "லிட்டில் மௌண்ட் பள்ளி": [
+    80.227112,
+    13.016251
+  ],
+  "மாரியம்மன் கோயில்": [
+    80.22621,
+    13.014121
+  ],
+  "சைதாப்பேட்டை அரசு மருத்துவமனை": [
+    80.224051,
+    13.020446
+  ],
+  "சைதாப்பேட்டை": [
+    80.228124,
+    13.023995
+  ],
+  "சின்னமலை": [
+    80.224167,
+    13.014663
+  ],
+  "ஆந்திர மாநில சபா": [
+    80.259566,
+    13.01743
+  ],
+  "அருள்மிகு வான்மீகி முனிவர் திருக்கோயில்": [
+    80.259717,
+    12.986396
   ],
   "Indira Eye Hospital": [
     80.262239,
@@ -1198,18 +1206,6 @@
   "Guru Nanak School": [
     80.220974,
     12.99069
-  ],
-  "வழக்கு தீர்க்கும் ஸ்ரீ வராஹி வள்ளி அம்மன் ஆலயம்": [
-    80.226861,
-    13.013048
-  ],
-  "லிட்டில் மௌண்ட் பள்ளி": [
-    80.227112,
-    13.016251
-  ],
-  "மாரியம்மன் கோயில்": [
-    80.22621,
-    13.014121
   ],
   "Guru Nanak College": [
     80.221558,
@@ -1459,22 +1455,6 @@
     80.226856,
     13.02915
   ],
-  "Alagappa College of Technology": [
-    80.238333,
-    13.007885
-  ],
-  "Akshaya": [
-    80.222484,
-    12.978798
-  ],
-  "Advent christian conference of india": [
-    80.226089,
-    12.985891
-  ],
-  "Advent Primary School": [
-    80.245061,
-    13.018865
-  ],
   "C.S.I. St. Thomas Church": [
     80.222436,
     13.018854
@@ -1511,21 +1491,77 @@
     80.216471,
     12.982385
   ],
-  "Ambedkar Law University - School of Excellence": [
-    80.264261,
-    13.016489
+  "Balakrishna Eye Hospital": [
+    80.226987,
+    13.027444
   ],
-  "Arulmigu Karaneeswarar Temple": [
-    80.223381,
-    13.024764
+  "Balaji Hospital (P) Ltd": [
+    80.206086,
+    13.007382
+  ],
+  "Bala Vidya Mandir": [
+    80.250789,
+    13.009866
+  ],
+  "Bala Saravana Matriculation School": [
+    80.210421,
+    12.983159
+  ],
+  "Ayesha Mosque": [
+    80.240915,
+    13.025376
   ],
   "Arulmighu Shri Mahamari Bhavani Amman Aalayam": [
     80.234732,
     12.982775
   ],
+  "Appasamy Krishna Hospital and Medical Research Centre": [
+    80.220502,
+    12.975865
+  ],
+  "Apollo Specialty Hospitals Private Limited": [
+    80.271101,
+    13.017796
+  ],
+  "Annai Velankanni Shrine": [
+    80.270034,
+    12.995178
+  ],
+  "Annai Velankanni College": [
+    80.21486,
+    13.019345
+  ],
+  "Annai Velankanni Church": [
+    80.270822,
+    12.995036
+  ],
+  "Anna Institute of Management": [
+    80.253478,
+    13.018597
+  ],
+  "Anna High School": [
+    80.268432,
+    13.000598
+  ],
   "drain path": [
     80.218522,
     12.970596
+  ],
+  "Adyar Creek": [
+    80.272854,
+    13.022973
+  ],
+  "Adyar River": [
+    80.236162,
+    13.01905
+  ],
+  "Buckingham Kaalvaai": [
+    80.250198,
+    12.994654
+  ],
+  "Mambalam Canal": [
+    80.23014,
+    13.02431
   ],
   "Mambalam Drain": [
     80.230682,
@@ -1539,29 +1575,13 @@
     80.22614,
     13.026244
   ],
+  "Veerangal Canal": [
+    80.211795,
+    12.97261
+  ],
   "Stormwater Drain": [
     80.222093,
     12.97117
-  ],
-  "Veerangal Canal": [
-    80.196213,
-    12.979963
-  ],
-  "Adyar Creek": [
-    80.272854,
-    13.022973
-  ],
-  "Buckingham Kaalvaai": [
-    80.250198,
-    12.994654
-  ],
-  "Adyar River": [
-    80.236162,
-    13.01905
-  ],
-  "Mambalam Canal": [
-    80.23014,
-    13.02431
   ],
   "['ஸ்ரீநகர் காலனி குறுக்கு தெரு']": [
     80.229323,
