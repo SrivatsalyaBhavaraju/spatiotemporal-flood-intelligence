@@ -381,7 +381,7 @@ gantt
 | 2.5 | Aggregate rainfall into phase-window dynamic features (`rainfall_t`, `cumulative_rainfall_t`) | P2 | 1.7, 1.8 | ✅ |
 | 2.6 | Attach dynamic features to graph nodes per timestep | P2 | 2.5, 2.2 | ✅ |
 | 2.7 | Define model input schema (`X_t`, `edge_index`, `Y_{t+1}` shapes) | P3 | 2.3, 2.6 | ✅ |
-| 2.8 | Build graph-snapshot dataset/data-loader class | P3 | 2.7 | ☐ |
+| 2.8 | Build graph-snapshot dataset/data-loader class | P3 | 2.7 | ✅ |
 | 2.9 | Finalize gazetteer (`name → coordinate` dict) | P4 | 1.14 | ☐ |
 | 2.10 | Implement fuzzy string matching pipeline (`rapidfuzz`) against gazetteer | P4 | 2.9 | ☐ |
 | 2.11 | Hand-label distress/not-distress dataset (few hundred posts) | P4 | 1.13 | ☐ |
@@ -395,6 +395,10 @@ gantt
 **2.7 done (19 Sep 2026)** — merged via PR [#6](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/6) (`src/models/gnn/build_model_input_schema.py`). Re-run end-to-end against real committed Phase 1/2.1/2.2/2.3/2.5/2.6 data before merging (2.1/2.2/2.5/2.6 regenerated locally since `data/processed/` is gitignored): `X.npy` shape `(4, 17195, 6)`, `edge_index.npy` shape `(2, 48732)` (reused 2.2's own `node_order()`/`edge_index_array()`, directed per that task's traversal-direction design), 0 missing values across all 6 feature columns, edge indices all in range. `X[0,0,:4]` spot-checked byte-for-byte against `static_features.geojson`'s row for the same segment. Real `Y_{t+1}` labels don't exist yet (task 3.4/Phase 3 hasn't started) — no label file was fabricated; `schema.json` documents the shape/dtype/join-key contract 3.4 must satisfy (3 usable transitions: pre_event→rising, rising→peak, peak→receding).
 
 **Note on `working.md` line 90 ("F = 7 features"):** that line counts §1.7's MUST-HAVE list literally, which bundles "road topology" (structural, = edge_index) and "flood label" (= Y_{t+1}) in with the 5 real per-node scalars, and doesn't itemize `length_m` separately even though §1.3's own node-feature list includes it. Actual per-node feature count in `X_t` is F=6, not 7 — cosmetic doc mismatch, not a functional gap, not fixed upstream, just flagged in the script's docstring.
+
+**2.8 done (19 Sep 2026)** — merged via PR [#7](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/7) (`src/models/gnn/build_graph_snapshot_dataset.py`). `GraphSnapshotDataset` wraps 2.7's outputs into one `Data(x, edge_index, y)` per phase, plus `.to_a3tgcn_input()`/`.to_mpnn_lstm_input()` reproducing task 1.12's `toy_gnn_prototype.py` shape conventions exactly. Validated beyond shape-checking: ran a real forward pass through the actual `A3TGCN`/`MPNNLSTM` model classes (not synthetic data) on the full real 17,195-node graph via this loader — both completed cleanly on GPU, output shapes `(17195, 1)` and `(17195, 25)` (matches `MPNNLSTM`'s own `2*hidden+in_channels+periods-1` formula). `attach_labels()` is ready to accept task 3.4's fused labels once they exist — validated against schema.json's `y_t1_contract` — but no labels are attached yet since Phase 3 hasn't started.
+
+**Next:** 2.4 (optional impervious %/ward density), 2.9 (finalize gazetteer), and Phase 3 (ground truth fusion, 3.1–3.4 — the critical path per developing.md §7) are the open items. Phase 2's P1/P3 critical path (2.1→2.8) is now fully done.
 
 **Next:** 2.4 (optional impervious %/ward density), 2.8 (data loader — now unblocked by 2.7), 2.9 (finalize gazetteer) are the open Phase 2 tasks.
 
