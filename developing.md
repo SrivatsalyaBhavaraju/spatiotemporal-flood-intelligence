@@ -418,7 +418,7 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 | 3.2 | Extract Bhuvan RISAT flood footprint (if Chennai chosen) | P2 | 0.6 | ✅ |
 | 3.3 | Cross-check with news/traffic advisories; geocode named roads via gazetteer | P2 | 2.9, 3.1, 3.2 | ✅ |
 | 3.4 | **Fuse into 4-phase label scheme** (Pre-event / Rising / Peak / Receding) per segment | P2 | 3.3, 2.2 | ✅ |
-| 3.5 | Freeze graph structure (no more topology changes after this point) | P1 | 2.3 | ☐ |
+| 3.5 | Freeze graph structure (no more topology changes after this point) | P1 | 2.3 | ✅ |
 | 3.6 | Build rule-based baseline propagation model | P1 | 3.5 | ☐ |
 | 3.7 | Build training/eval harness skeleton (phase-based train/test split, metrics) | P3 | 2.8 | ☐ |
 | 3.8 | Fine-tune MuRIL/IndicBERT distress classifier on labeled data | P4 | 2.11 | ☐ |
@@ -441,7 +441,9 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 
 **Validated beyond "does it run":** ran a real integration check against task 2.8's actual `GraphSnapshotDataset` — `attach_labels()` accepted the fused table and `transition_pairs()` produced exactly the 3 usable `(X_t, Y_{t+1})` pairs `schema.json` promises, each with correct `(17195, 6)`/`(17195, 1)` shapes. Concrete proof, not just an assertion, that Phase 4 (GNN training) can now start.
 
-**Next:** Phase 4 (model training, 4.1+) can now start for real — 3.4's fused labels + 2.8's data loader are both ready. 3.5/3.6/3.7 (P1/P3 tasks, freeze graph → rule-based baseline, and the training harness) remain the open Phase 3 items and should be finished before/alongside 4.1 per the phase dependency map.
+**3.5 done (19 Sep 2026)** — merged via PR [#14](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/14) (`src/graph/verify_graph_freeze.py`). A checksum-based freeze contract (`FROZEN_FINGERPRINT`: node count, edge count, SHA256 of the sorted segment_id set) committed as code rather than a new data file, since `data/processed/` stays regenerable-only throughout this repo. Not a non-determinism safeguard — the 2.1/2.2 pipeline was re-run 5+ times this session with identical `6,971/17,195` primal and `17,195/48,732` line-graph counts every time — this is a **process commitment**: no more edits to `build_primal_graph.py`/`build_line_graph.py`, the AOI, or an OSM re-pull without deliberately updating the fingerprint and re-verifying everything built on top. Real run: exact match, no drift, and both downstream tables checked (task 2.3's `static_features.geojson`, task 2.7's `node_order.json`) carry exactly the frozen segment_id set. **Graph topology is frozen as of this commit.**
+
+**Next:** Phase 4 (model training, 4.1+) can now start for real — 3.4's fused labels + 2.8's data loader are both ready, and 3.5 confirms the graph itself won't shift under them. 3.6/3.7 (P1/P3: rule-based baseline, training harness) remain the open Phase 3 items.
 
 ---
 
