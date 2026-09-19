@@ -1,0 +1,181 @@
+{
+  "n_passages": 19,
+  "total_known_locations": 31,
+  "total_recovered": 27,
+  "total_absorbed_by_more_specific_match": 4,
+  "recall_excluding_absorbed": 1.0,
+  "total_extra_found": 5,
+  "per_passage_examples": [
+    {
+      "known": [
+        "Adyar",
+        "Adyar River"
+      ],
+      "found": [
+        "Adyar",
+        "Adyar River"
+      ],
+      "recovered": [
+        "Adyar",
+        "Adyar River"
+      ],
+      "absorbed_by_more_specific_match": [],
+      "real_misses": [],
+      "extra": []
+    },
+    {
+      "known": [
+        "Adyar",
+        "Adyar River"
+      ],
+      "found": [
+        "Adyar River"
+      ],
+      "recovered": [
+        "Adyar River"
+      ],
+      "absorbed_by_more_specific_match": [
+        "Adyar"
+      ],
+      "real_misses": [],
+      "extra": []
+    },
+    {
+      "known": [
+        "Adyar",
+        "Adyar River"
+      ],
+      "found": [
+        "Adyar River"
+      ],
+      "recovered": [
+        "Adyar River"
+      ],
+      "absorbed_by_more_specific_match": [
+        "Adyar"
+      ],
+      "real_misses": [],
+      "extra": []
+    },
+    {
+      "known": [
+        "Adyar",
+        "Adyar River"
+      ],
+      "found": [
+        "Adyar River"
+      ],
+      "recovered": [
+        "Adyar River"
+      ],
+      "absorbed_by_more_specific_match": [
+        "Adyar"
+      ],
+      "real_misses": [],
+      "extra": []
+    },
+    {
+      "known": [
+        "Velachery"
+      ],
+      "found": [
+        "Kuberan Nagar",
+        "Ram Nagar",
+        "Velachery",
+        "Vijaynagar"
+      ],
+      "recovered": [
+        "Velachery"
+      ],
+      "absorbed_by_more_specific_match": [],
+      "real_misses": [],
+      "extra": [
+        "Kuberan Nagar",
+        "Ram Nagar",
+        "Vijaynagar"
+      ]
+    },
+    {
+      "known": [
+        "Velachery"
+      ],
+      "found": [
+        "Stormwater Drain",
+        "Velachery"
+      ],
+      "recovered": [
+        "Velachery"
+      ],
+      "absorbed_by_more_specific_match": [],
+      "real_misses": [],
+      "extra": [
+        "Stormwater Drain"
+      ]
+    },
+    {
+      "known": [
+        "Velachery"
+      ],
+      "found": [
+        "Velachery"
+      ],
+      "recovered": [
+        "Velachery"
+      ],
+      "absorbed_by_more_specific_match": [],
+      "real_misses": [],
+      "extra": []
+    },
+    {
+      "known": [
+        "Adambakkam",
+        "Velachery"
+      ],
+      "found": [
+        "Adambakkam",
+        "Velachery"
+      ],
+      "recovered": [
+        "Adambakkam",
+        "Velachery"
+      ],
+      "absorbed_by_more_specific_match": [],
+      "real_misses": [],
+      "extra": []
+    },
+    {
+      "known": [
+        "Velachery"
+      ],
+      "found": [
+        "Velachery"
+      ],
+      "recovered": [
+        "Velachery"
+      ],
+      "absorbed_by_more_specific_match": [],
+      "real_misses": [],
+      "extra": []
+    },
+    {
+      "known": [
+        "Kotturpuram",
+        "Saidapet",
+        "Velachery"
+      ],
+      "found": [
+        "Kotturpuram",
+        "Saidapet",
+        "Velachery"
+      ],
+      "recovered": [
+        "Kotturpuram",
+        "Saidapet",
+        "Velachery"
+      ],
+      "absorbed_by_more_specific_match": [],
+      "real_misses": [],
+      "extra": []
+    }
+  ]
+}
