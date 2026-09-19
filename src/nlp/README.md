@@ -93,3 +93,53 @@ synthetic code-mixed alternative) — not hidden as equivalent to tweets.
 Task 2.11 hand-labels a subset of this corpus (distress / not-distress);
 if the register gap turns out to matter in practice, revisit then rather
 than guessing now.
+
+## `finalize_gazetteer.py` — task 2.9
+
+Closes the loop `build_gazetteer.py`'s docstring promised: does real text
+about this event (task 1.13) mention place names the OSM-only draft
+missed? Re-fetches **every** paragraph from task 1.13's source pages (not
+just the subset `corpus_draft.csv` kept — that file only contains
+paragraphs that already matched a gazetteer name, so it structurally can't
+surface a name the gazetteer was missing), extracts 2+-word capitalized
+phrase candidates (a plain regex, no NER model), and checks the ones not
+already in the draft against real OSM data for the study wards.
+
+```bash
+python src/nlp/finalize_gazetteer.py
+```
+
+**Result (19 Sep 2026):** 146 paragraphs re-scanned (vs. the 19 that had
+already survived task 1.13's gazetteer-match filter), 397 raw candidate
+mentions, 234 unique novel candidates (i.e. not already in the 1,787-name
+draft) — real place names ("Anna Nagar", "Cooum River", "Meenambakkam
+Airport", "Okkiyam Thoraipakkam") mixed with the expected noise from a
+disaster-coverage corpus (person names, government bodies, generic
+institutional phrases — "Prime Minister Modi", "World Bank", "Red Cross").
+
+**OSM verification hit a real, disclosed connectivity problem, not a code
+bug:** every attempt to check those 234 candidates against live OSM data
+failed — `overpass-api.de` and `lz4.overpass-api.de` both timed out at the
+TCP-connect level on this network, and `overpass.kumi.systems` (which did
+connect) rejected the request outright with `413 Request Entity Too Large`
+— a single query listing 234 candidate names is a genuinely large request
+body, not a flaky-network illusion. Tried 3 mirrors × 2 attempts each
+before giving up on this run.
+
+**Ships a partial, honestly-labeled result rather than blocking on that:**
+`gazetteer_final.csv`/`.json` are the draft gazetteer, unchanged — nothing
+fabricated, nothing silently dropped. All 234 candidates are recorded in
+`gazetteer_finalization_report.json`'s `novel_candidates_unverified` list,
+explicitly **not** claimed as confirmed-absent from OSM — just not yet
+checked. Re-running this script once a working Overpass connection is
+available will attempt to resolve them (ideally in smaller batches, given
+the 413 finding above, rather than one 234-name request).
+
+**Outputs** (`data/raw/gazetteer/` — committed, like the draft, not
+gitignored; see task 1.13/1.14's own commit for why):
+
+| File | Contents |
+|---|---|
+| `gazetteer_final.csv` | Draft rows + any OSM-verified new candidates (0 this run) |
+| `gazetteer_final.json` | Flat `{name: [lon, lat]}` dict — task 2.9's literal deliverable for task 2.10's fuzzy matcher |
+| `gazetteer_finalization_report.json` | Candidate counts, resolved/dropped/**unverified** examples |
