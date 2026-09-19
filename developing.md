@@ -417,7 +417,7 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 | 3.1 | Run Sentinel-1 SAR change detection in GEE (before/after backscatter) | P2 | 1.9, 0.5 | ✅ |
 | 3.2 | Extract Bhuvan RISAT flood footprint (if Chennai chosen) | P2 | 0.6 | ✅ |
 | 3.3 | Cross-check with news/traffic advisories; geocode named roads via gazetteer | P2 | 2.9, 3.1, 3.2 | ✅ |
-| 3.4 | **Fuse into 4-phase label scheme** (Pre-event / Rising / Peak / Receding) per segment | P2 | 3.3, 2.2 | ☐ |
+| 3.4 | **Fuse into 4-phase label scheme** (Pre-event / Rising / Peak / Receding) per segment | P2 | 3.3, 2.2 | ✅ |
 | 3.5 | Freeze graph structure (no more topology changes after this point) | P1 | 2.3 | ☐ |
 | 3.6 | Build rule-based baseline propagation model | P1 | 3.5 | ☐ |
 | 3.7 | Build training/eval harness skeleton (phase-based train/test split, metrics) | P3 | 2.8 | ☐ |
@@ -437,7 +437,11 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 
 **Not phase-resolved, by design:** checked directly whether the real corpus carries per-passage dates — it doesn't (only one of 19 original passages' own source URL has any date range). A news-flagged segment means "flooded at some point during the event," not "flooded in phase X." Task 3.4's fusion has to decide how to use a phase-unresolved signal.
 
-**Next:** 3.4 (fuse into the 4-phase label scheme) is now the last blocker on Phase 3's exit criterion — all of 3.1/3.2/3.3 are merged. 3.5/3.6/3.7 (P1/P3 tasks, already unblocked by 2.3/2.8) remain available in parallel.
+**3.4 done (19 Sep 2026) — Phase 3's exit criterion met** — merged via PR [#13](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/13) (`src/ground_truth/fuse_flood_labels.py`). `ever_flooded = intersects(3.1) OR intersects(3.2) OR flagged-by(3.3)` — working.md's own rule, extended across all three sources. **Two decisions confirmed directly with the user before implementing/finalizing, not silently chosen:** (1) phase assignment — none of the three sources are phase-resolved, so `ever_flooded` gets assigned to **peak and receding only** (pre_event/rising stay dry), grounded in task 2.5's rainfall numbers (rising 31mm/2days vs. peak 410mm/2days, a 13x contrast); (2) whether to keep the literal OR-fusion rule despite it producing a very high flooded rate, or require 2+ sources to agree for a tighter signal — kept the literal OR rule since that's what working.md actually specifies. Real result: SAR (primary) flags 5.4% of segments, Bhuvan 44.4%, news 81.1% → union is **15,038/17,195 segments (87.46%) flooded at peak/receding**, dominated by the two coarse secondary sources rather than the primary one (only 1.4% of segments have all 3 sources agreeing, 40.7% have 2, 45.4% rest on exactly 1). Per-source columns (`sar_flagged`/`bhuvan_flagged`/`news_flagged`/`n_sources_agreeing`) are saved in the output specifically so task 4.x can re-derive a stricter subset later without rerunning this script, if 87% turns out to limit what the GNN can learn.
+
+**Validated beyond "does it run":** ran a real integration check against task 2.8's actual `GraphSnapshotDataset` — `attach_labels()` accepted the fused table and `transition_pairs()` produced exactly the 3 usable `(X_t, Y_{t+1})` pairs `schema.json` promises, each with correct `(17195, 6)`/`(17195, 1)` shapes. Concrete proof, not just an assertion, that Phase 4 (GNN training) can now start.
+
+**Next:** Phase 4 (model training, 4.1+) can now start for real — 3.4's fused labels + 2.8's data loader are both ready. 3.5/3.6/3.7 (P1/P3 tasks, freeze graph → rule-based baseline, and the training harness) remain the open Phase 3 items and should be finished before/alongside 4.1 per the phase dependency map.
 
 ---
 
