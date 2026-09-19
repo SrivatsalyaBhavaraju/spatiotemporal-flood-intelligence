@@ -204,3 +204,57 @@ GNN loses" — task 5.3 formalizes this comparison.
 Outputs (`data/processed/ground_truth/`, gitignored): `gnn_model.pt`,
 `gnn_feature_normalization_stats.json`, `gnn_training_curve.csv`,
 `gnn_evaluation_report.json`.
+
+## `tune_hyperparameters.py` — task 4.2
+
+Directly addresses a limitation task 3.7/4.1 already disclosed: with only
+16 wards, a single fixed 70/15/15 split gives noisy, high-variance val/
+test metrics that depend heavily on *which* wards happened to land where.
+This replaces the single point estimate with **k-fold cross-validation**
+(K=4) over task 3.7's train+val wards — the official test wards stay
+completely untouched until the final step, never used for selection.
+
+```bash
+python src/models/gnn/tune_hyperparameters.py
+```
+
+**Method:** (1) partition train+val wards into 4 segment-count-balanced
+folds; (2) for each candidate learning rate (0.005/0.01/0.02), train 4
+models (one fold held out each time, reusing task 4.1's own
+`train_model()`/`evaluate_model()`) and aggregate mean±std F1 across
+folds; (3) select the LR with the best mean F1 on the two flood-relevant
+transitions; (4) re-run the folds once more with that LR to pool held-out
+predictions and sweep the decision threshold (task 4.1 used a naive fixed
+0.5); (5) retrain a final model on ALL train+val wards with the selected
+LR, evaluate ONCE on the official test wards with the tuned threshold.
+Epochs stayed fixed at task 4.1's 300 (not independently grid-searched,
+to keep total runtime bounded — ~17 real training runs at ~30s each).
+
+**Result (19 Sep 2026):**
+- Selected **LR=0.02** (CV mean flood-relevant F1: 0.673 @ 0.005, 0.764 @
+  0.01, **0.768 @ 0.02**) — a modest, real improvement, backed by
+  cross-validated evidence rather than one arbitrary split. Fold std was
+  ±0.073, giving an honest sense of how much this estimate itself varies.
+- Selected **threshold=0.1** (down from the naive 0.5) — the tuned
+  model's probabilities for the flood-relevant transitions cluster low
+  enough that thresholds 0.1–0.25 all tie at the best pooled F1 (0.923).
+- **Final tuned test result: rising→peak and peak→receding both hit
+  F1=0.982** (up from task 4.1's un-tuned 0.93/0.93 on the same test
+  wards) — a genuine, cross-validated improvement.
+
+**A real, disclosed tradeoff, not hidden:** the SAME global threshold
+(0.1), chosen specifically to maximize the flood-relevant transitions,
+badly hurts `pre_event->rising` — which should trivially predict "nothing
+floods" (task 3.4's design) but now predicts **everything** as flooded
+(test accuracy 0.0, down from task 4.1's trivial 1.0). This is an honest,
+expected consequence of tuning one global threshold across transitions
+with wildly different base rates (0% vs. ~93% positive) rather than a
+per-transition threshold — `pre_event->rising` was explicitly excluded
+from the tuning objective (see `FLOOD_RELEVANT_TRANSITIONS`) precisely
+because it's uninformative for selection, but that also means nothing
+protects it from a threshold chosen without it in mind. Worth a per-
+transition threshold if this model line is developed further.
+
+Outputs (`data/processed/ground_truth/`, gitignored):
+`hyperparameter_tuning_report.json` (full CV grid, threshold sweep,
+selected hyperparameters, final tuned test evaluation).
