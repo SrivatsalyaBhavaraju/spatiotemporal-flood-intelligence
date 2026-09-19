@@ -376,7 +376,7 @@ gantt
 |---|---|---|---|---|
 | 2.1 | Build primal graph (`networkx`) from OSM road+drainage data | P1 | 1.1, 1.2, 1.4 | ✅ |
 | 2.2 | Transform primal → line graph (segment = node) | P1 | 2.1 | ✅ |
-| 2.3 | Compute static node features: elevation, slope, length, distance_to_drain | P1 | 2.2, 1.5, 1.6 | ☐ |
+| 2.3 | Compute static node features: elevation, slope, length, distance_to_drain | P1 | 2.2, 1.5, 1.6 | ✅ |
 | 2.4 | *(Optional)* Compute impervious %, ward population density | P1 | 2.3 | ☐ |
 | 2.5 | Aggregate rainfall into phase-window dynamic features (`rainfall_t`, `cumulative_rainfall_t`) | P2 | 1.7, 1.8 | ✅ |
 | 2.6 | Attach dynamic features to graph nodes per timestep | P2 | 2.5, 2.2 | ✅ |
@@ -390,7 +390,9 @@ gantt
 
 **Note on 2.5's phase-window totals:** pre_event's total (1055.7mm over its 20-day window) is larger than peak's (410.1mm over 2 days) simply because the windows are very different lengths — this doesn't contradict peak being correct (410mm matches the literature), but the script's own printed "phase 2 should now be the clear maximum" sanity message is misleading since it's comparing un-normalized window totals. Cosmetic only, not asserted in code, doesn't affect downstream values — worth fixing the message (or switching to average intensity) whenever 2.5 is next touched, no need to reopen now.
 
-**Next:** 2.3 (static node features — elevation/slope/length/distance_to_drain) and 2.9 (finalize gazetteer) are now unblocked.
+**2.3 done (19 Sep 2026)** — merged via PR [#5](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/5) (`src/graph/build_static_features.py`). Re-run end-to-end against real committed Phase 1/2.1/2.2 data before merging (2.1/2.2 regenerated locally since `data/processed/` is gitignored), reproducing the PR's own claimed numbers exactly: 17,195 segments, 0 missing elevation/slope/distance_to_drain values, 0 segments with zero valid raster samples. Elevation came out 0–20m (mean 8.2m) with one segment averaging slightly negative (-3.7m) near the coast/backwaters — consistent with the raw SRTM DEM's own min of -19m (task 1.5), not a bug in this PR. distance_to_drain ranged 0–2091m (mean 498m), consistent with 1.4's finding that drainage tagging is sparse and concentrated along ward-boundary waterways rather than interior segments.
+
+**Next:** 2.4 (optional impervious %/ward density), 2.7 (model input schema), 2.9 (finalize gazetteer) are now unblocked.
 
 ---
 
