@@ -33,6 +33,7 @@ from src.ground_truth.run_sentinel1_change_detection import (  # noqa: E402
     clip_to_wards,
     cross_check_against_nrsc_simulation,
     load_wards_union,
+    per_ward_area_breakdown,
     sieve_mask,
     validate_flood_extent,
     vectorize_mask,
@@ -174,6 +175,36 @@ class TestValidateFloodExtent:
         assert "WardA" in report["per_ward_flooded_area_km2"]
         assert "WardB" not in report["per_ward_flooded_area_km2"]
         assert report["change_detection_diagnostics"]["threshold_used"]["method"] == f"mean - {CHANGE_STD_MULTIPLIER}*std"
+
+
+class TestPerWardAreaBreakdown:
+    def test_wards_sharing_a_zone_name_accumulate_not_overwrite(self):
+        # Real data shape: 13 of 16 study wards all share Zone_Name "ADYAR"
+        # (distinguished only by Ward_No) -- a naive dict keyed on Zone_Name
+        # alone would silently overwrite each ward's area with the next
+        # one's instead of summing them. Geometries are in meters (a real
+        # projected CRS) at a km-scale so areas are checkable at km^2
+        # precision (a small unit box would round away to 0.0 km^2).
+        utm_crs = "EPSG:32644"  # UTM 44N, covers Chennai -- a real projected CRS
+        wards = gpd.GeoDataFrame(
+            {
+                "Zone_Name": ["ADYAR", "ADYAR", "KODAMBAKKAM"],
+                "Ward_No": [174, 175, 142],
+                "geometry": [box(0, 0, 1000, 1000), box(1000, 0, 2000, 1000), box(2000, 0, 3000, 1000)],
+            },
+            crs=utm_crs,
+        )
+        flood_gdf = gpd.GeoDataFrame(
+            {"geometry": [box(0, 0, 1000, 500), box(1000, 0, 2000, 500), box(2000, 0, 3000, 500)]}, crs=utm_crs
+        )  # a 1000x500m (0.5 km^2) flood polygon fully inside each ward
+
+        result = per_ward_area_breakdown(flood_gdf, wards)
+
+        assert len(result) == 3  # ward 174 and ward 175 must stay separate, not collapse into one "ADYAR" key
+        adyar_total = sum(v for k, v in result.items() if k.startswith("ADYAR"))
+        assert adyar_total == pytest.approx(1.0, abs=1e-4)  # two 0.5 km^2 wards -- would be 0.5 if overwritten instead of summed
+        assert any("174" in k for k in result)
+        assert any("175" in k for k in result)
 
 
 class TestNrscCrossCheck:

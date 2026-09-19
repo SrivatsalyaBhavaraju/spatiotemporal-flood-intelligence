@@ -236,6 +236,33 @@ def vectorize_mask(mask: np.ndarray, transform, crs) -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame({"geometry": polygons}, geometry="geometry", crs=crs)
 
 
+def _ward_label(ward_row, wards_columns) -> str:
+    zone, ward_no = ward_row.get("Zone_Name"), ward_row.get("Ward_No")
+    if zone is not None and ward_no is not None:
+        return f"{zone} (Ward {ward_no})"
+    if "Zone_Name" in wards_columns:
+        return str(ward_row["Zone_Name"])
+    return str(ward_row[wards_columns[0]])
+
+
+def per_ward_area_breakdown(flood_proj: gpd.GeoDataFrame, wards_proj: gpd.GeoDataFrame) -> dict:
+    """Flooded area per ward (km^2), keyed by a ward-unique label
+    ("<Zone_Name> (Ward <Ward_No>)" when both columns exist). Accumulates
+    rather than overwrites so wards sharing a Zone_Name -- common, since a
+    "zone" groups several numbered wards; 13 of this study's 16 wards are
+    all "ADYAR" -- don't silently clobber each other's area. `flood_proj`/
+    `wards_proj` must already be in the same projected (metric) CRS.
+    """
+    per_ward = {}
+    for _, ward_row in wards_proj.iterrows():
+        inter = flood_proj.geometry.intersection(ward_row.geometry)
+        area_km2 = inter.area.sum() / 1e6
+        if area_km2 > 0:
+            label = _ward_label(ward_row, wards_proj.columns)
+            per_ward[label] = per_ward.get(label, 0.0) + area_km2
+    return dict(sorted(((k, round(v, 4)) for k, v in per_ward.items()), key=lambda kv: -kv[1]))
+
+
 def clip_to_wards(flood_gdf: gpd.GeoDataFrame, wards_union) -> gpd.GeoDataFrame:
     """Intersect flood polygons with the actual study-ward union (not its
     bounding box) -- the download grid is a rectangle, this trims it back
@@ -295,14 +322,7 @@ def validate_flood_extent(
     }
 
     wards_proj = wards.to_crs(utm_crs)
-    ward_name_col = "Zone_Name" if "Zone_Name" in wards.columns else wards.columns[0]
-    per_ward = {}
-    for _, ward_row in wards_proj.iterrows():
-        inter = flood_proj.geometry.intersection(ward_row.geometry)
-        area_km2 = inter.area.sum() / 1e6
-        if area_km2 > 0:
-            per_ward[str(ward_row[ward_name_col])] = round(float(area_km2), 4)
-    report["per_ward_flooded_area_km2"] = dict(sorted(per_ward.items(), key=lambda kv: -kv[1]))
+    report["per_ward_flooded_area_km2"] = per_ward_area_breakdown(flood_proj, wards_proj)
 
     return report
 
