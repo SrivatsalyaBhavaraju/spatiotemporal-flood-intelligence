@@ -93,3 +93,69 @@ synthetic code-mixed alternative) — not hidden as equivalent to tweets.
 Task 2.11 hand-labels a subset of this corpus (distress / not-distress);
 if the register gap turns out to matter in practice, revisit then rather
 than guessing now.
+
+## `finalize_gazetteer.py` — task 2.9
+
+Closes the loop `build_gazetteer.py`'s docstring promised: does real text
+about this event (task 1.13) mention place names the OSM-only draft
+missed? Re-fetches **every** paragraph from task 1.13's source pages (not
+just the subset `corpus_draft.csv` kept — that file only contains
+paragraphs that already matched a gazetteer name, so it structurally can't
+surface a name the gazetteer was missing), extracts 2+-word capitalized
+phrase candidates (a plain regex, no NER model), and checks the ones not
+already in the draft against real OSM data for the study wards.
+
+```bash
+python src/nlp/finalize_gazetteer.py
+```
+
+**Result (19 Sep 2026):** 146 paragraphs re-scanned (vs. the 19 that had
+already survived task 1.13's gazetteer-match filter), 397 raw candidate
+mentions, 234 unique novel candidates (i.e. not already in the 1,787-name
+draft) — real place names ("Anna Nagar", "Cooum River", "Meenambakkam
+Airport", "Okkiyam Thoraipakkam") mixed with the expected noise from a
+disaster-coverage corpus (person names, government bodies, generic
+institutional phrases — "Prime Minister Modi", "World Bank", "Red Cross").
+
+**OSM verification hit two real, disclosed problems, not code bugs, and
+both are fixed:** (1) a single query listing all 234 candidate names hit
+`413 Request Entity Too Large` on the one mirror that accepted a
+connection — fixed by batching into groups of 25 (`NAME_BATCH_SIZE`); (2)
+`overpass-api.de` and `lz4.overpass-api.de` both consistently hit TCP-
+connect timeouts on this network throughout development, so
+`overpass.kumi.systems` is tried first now.
+
+**Result after batching (19 Sep 2026):** even the working mirror is
+intermittently flaky — of 10 batches, 6 failed on every mirror/attempt and
+4 succeeded (a real ~50/50 pattern across the run, not a one-off). Of the
+109 candidates actually checked: **5 resolved** to a real OSM feature
+("Chennai Corporation", "Gandhi Road", "Kuberan Nagar", "Royal Enfield",
+"World Bank"), 104 confirmed no match. The remaining 125 candidates
+(batches that failed every attempt) are recorded as unverified, not
+confirmed-absent.
+
+**A real OSM match isn't automatically a genuine flood-relevant place —
+disclosed, not silently filtered:** "World Bank" and "Royal Enfield" almost
+certainly matched a coincidentally-named local shop and a motorcycle
+showroom respectively — the distress text likely meant the international
+org and the rescue-vehicle brand, not those specific OSM features. Kept in
+the output anyway rather than hand-excluded: the whole point of using OSM
+as the truth filter was avoiding a hand-curated semantic denylist, and
+picking off inconvenient matches after the fact would just be that
+denylist under a different name. `resolved_examples` in the report is
+short enough to spot-check by hand before task 2.10 leans on it.
+
+**Ships a partial, honestly-labeled result, not blocked on the remaining
+flakiness:** `gazetteer_final.csv`/`.json` include the 5 newly-resolved
+rows; nothing fabricated for the 125 still-unverified candidates, and
+nothing silently dropped. Re-running this script will only re-attempt what
+`novel_candidates_unverified` still lists.
+
+**Outputs** (`data/raw/gazetteer/` — committed, like the draft, not
+gitignored; see task 1.13/1.14's own commit for why):
+
+| File | Contents |
+|---|---|
+| `gazetteer_final.csv` | Draft rows + OSM-verified new candidates (5 this run) |
+| `gazetteer_final.json` | Flat `{name: [lon, lat]}` dict — task 2.9's literal deliverable for task 2.10's fuzzy matcher |
+| `gazetteer_finalization_report.json` | Candidate counts, resolved/dropped/**unverified** examples |
