@@ -49,10 +49,43 @@ Run against the confirmed cluster:
   differentiated in wards with near-zero interior tagging; the DEM-derived slope/elevation
   features will be carrying more of the signal there than drainage proximity will.
 
+## `verify_graph_freeze.py` — task 3.5
+
+Freezes the graph structure: from this point forward, no more topology
+changes. Ground truth (task 3.4) and the model input schema (task 2.7)
+are already keyed off the exact segment_id set and ordering tasks 2.1/2.2
+produced — this script defines that as a checksum contract and verifies
+the live-regenerated graph, plus every downstream table already built on
+top of it, still matches.
+
+```bash
+python src/graph/verify_graph_freeze.py
+```
+
+**Not a non-determinism concern** — the 2.1/2.2 pipeline was re-run 5+
+times over this project's session and produced the identical
+6,971/17,195 primal and 17,195/48,732 line-graph counts every time. It's a
+**process commitment**: nobody edits `build_primal_graph.py`/
+`build_line_graph.py`'s logic, the study-ward AOI, or re-pulls OSM data
+from this point on without deliberately updating `FROZEN_FINGERPRINT` in
+this script and re-verifying everything built on top of the graph (2.3+,
+3.1–3.4, eventually 4.x).
+
+**Freeze contract:** node count, edge count, and a SHA256 hash of the
+sorted segment_id set — the hash catches same-count-but-different-IDs
+drift a bare count wouldn't (e.g. an OSM re-pull returning the same
+number of segments but different ones). Also checks task 2.3's
+`static_features.geojson` and task 2.7's `node_order.json` carry exactly
+that same segment_id set, not just a re-statement of 2.1/2.2's own
+already-known numbers.
+
+**Result (19 Sep 2026):** `node_count=17195, edge_count=48732`,
+`segment_id_set_sha256=ca3ad91...` — exact match, no drift. Both
+downstream tables checked are fully consistent. **Graph topology is
+frozen as of this commit.**
+
 ## Next in this track
 
-- **1.14** (P4, blocked on this): gazetteer draft needs `roads_edges.geojson` (road names)
-  and `wards/study_wards.geojson` (locality bounds).
-- **2.1**: build the primal graph from `roads.graphml` + `waterways.geojson` (this task's
-  output *is* 2.1's input — no further OSM pulling needed, just the primal→line-graph
-  transform).
+Phase 2/3's graph-construction work (2.1–3.5) is done. Task 3.6 (rule-
+based baseline propagation model) and task 4.1 (GNN training) are the
+next consumers of this frozen graph.
