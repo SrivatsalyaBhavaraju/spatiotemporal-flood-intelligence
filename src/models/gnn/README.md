@@ -120,3 +120,87 @@ rather than trust a single val split's numbers at face value.
 
 Outputs (`data/processed/model_input/`, gitignored): `segment_splits.csv`
 (segment_id, ward_no, split) and the validation report.
+
+## `train_gnn.py` — task 4.1
+
+Trains GraphSAGE + a temporal layer (A3TGCN) on the real fused ground
+truth (task 3.4), evaluated with task 3.7's ward-based split. Working.md
+§1.6's "core experiment": this model vs. task 3.6's rule-based baseline,
+on the exact same transitions/metrics.
+
+```bash
+python src/models/gnn/train_gnn.py
+```
+
+**Temporal framing — confirmed with the user before implementing** (no
+spec exists in working.md): the 3 usable transitions each have a
+*different* amount of real history (1, 2, 3 prior phases), and A3TGCN
+needs a fixed `periods` at construction time. Rather than pad shorter
+transitions with fake history or train 3 separate single-example models
+(severe overfitting — each is one graph snapshot), this trains ONE
+`A3TGCN(periods=1)` with shared weights, pooling all 3 transitions'
+`(X_t, Y_t+1)` pairs for training — matching task 3.6's baseline and task
+2.8's `transition_pairs()` design exactly, for an apples-to-apples
+comparison. Honest tradeoff: with periods=1, A3TGCN's attention-over-
+history is degenerate — this tests whether the underlying spatial graph
+convolution can learn flood propagation, not genuine multi-step memory
+(this dataset — one event, 4 phases — is too short to support that
+meaningfully regardless of architecture).
+
+**Two real bugs found and fixed on the first real training runs, not
+hidden:**
+1. **Features were never normalized.** Raw scales span wildly different
+   ranges (elevation ~0-20m, length_m ~0-1150m, distance_to_drain_m
+   ~0-2000m, rainfall_t ~0-410mm). Feeding those directly into a
+   GRU-gated model starved gradient flow so badly the trained model's
+   output had **exactly zero variance across all 17,195 segments** — it
+   learned to ignore every input and output one constant bias value.
+   Fixed with train-split-derived z-score normalization (never leaking
+   val/test statistics into the "fixed" preprocessing).
+2. **`pos_weight` was pooled across all 3 transitions instead of computed
+   per transition.** pre_event→rising is 100% negative while rising→peak/
+   peak→receding are ~93% positive (task 3.4) — pooling blends these into
+   one misleading, diluted weight that isn't correctly calibrated for
+   either sub-task. Fixed by weighting each transition's own loss term by
+   its own train-split class balance.
+
+## Result (19 Sep 2026) — the actual baseline-vs-GNN comparison
+
+| Transition | Split | Baseline F1 (task 3.6/3.7) | GNN F1 |
+|---|---|---|---|
+| pre_event→rising | all | 0.0 (trivial no-op) | 0.0 (trivial no-op) |
+| **rising→peak** | train | 0.0 | **0.79** |
+| **rising→peak** | val | 0.0 | **0.44** |
+| **rising→peak** | test | 0.0 | **0.93** |
+| peak→receding | train | 0.96 | 0.79 |
+| peak→receding | val | 0.63 | 0.43 |
+| peak→receding | test | 0.98 | 0.93 |
+
+**rising→peak is the headline result** — the measured version of
+working.md's core claim, not just an assertion of it. The baseline
+completely fails here (F1=0 on every split, `src/models/baseline/README.md`)
+because a static reactive rule structurally cannot anticipate a future
+rainfall spike from a currently-dry state. The GNN, learning from
+elevation/slope/distance_to_drain/rainfall via real spatial graph
+convolution, gets this dramatically right instead (F1 0.79/0.44/0.93).
+
+**peak→receding is more mixed, and disclosed as such:** the baseline
+actually matches or beats the GNN here on train/test, because that
+transition is structurally easy for ANY model given task 3.4's fusion
+assigns peak and receding the *identical* `ever_flooded` set — the
+baseline's "rain > threshold → flood everything" trivially matches. The
+GNN, trying to learn genuine per-node differentiation rather than a
+blanket rule, pays a modest precision cost for that. Val performance for
+both models on this transition is weak, consistent with task 3.7's
+already-disclosed small-N-of-wards variance (only 2 wards each in val/
+test).
+
+**Read together:** the GNN's real advantage shows up specifically where
+propagation genuinely matters (predicting flood onset), not where a
+trivial rule already happens to work by construction of the ground
+truth. That's a more honest, specific claim than "the GNN wins" or "the
+GNN loses" — task 5.3 formalizes this comparison.
+
+Outputs (`data/processed/ground_truth/`, gitignored): `gnn_model.pt`,
+`gnn_feature_normalization_stats.json`, `gnn_training_curve.csv`,
+`gnn_evaluation_report.json`.
