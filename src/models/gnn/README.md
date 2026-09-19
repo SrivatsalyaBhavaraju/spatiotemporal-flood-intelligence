@@ -73,3 +73,50 @@ with node ids offset by `t*num_nodes` — each timestep's graph convolution
 stays independent; only the LSTM afterwards mixes across time. Get this
 wrong and the model still runs (no shape error) but silently mixes the wrong
 nodes' features — see the comment above `test_mpnn_lstm()` before reusing it.
+
+## `build_training_harness.py` — task 3.7
+
+A phase-based train/val/test split + reusable metrics, ready for task
+4.1's GNN training. **No spec for this exists in working.md** (checked
+directly) — the design here is this task's own judgment call.
+
+```bash
+python src/models/gnn/build_training_harness.py
+```
+
+**Why a WARD-level (spatial) split, not a temporal (transition) one:**
+there are only 3 usable transitions total (task 2.7), and each one's
+dynamic features (`rainfall_t`) are broadcast identically to every
+segment within a phase (task 2.6) — holding out a whole transition for
+testing would remove an entire feature-context from a dataset that's
+already small. A ward-level split instead uses all 3 transitions for both
+training and evaluation, holding out geographically contiguous segment
+groups — the standard mitigation for spatial-autocorrelation leakage a
+per-node random split would have. "Phase-based" in this task's name
+describes how results are *reported* (task 5.1/5.2 ask for F1/accuracy
+**per phase transition**), not how segments are split.
+
+**Method:** shuffle wards (fixed seed 42), greedily assign each to
+whichever bucket (train 70% / val 15% / test 15%, by segment count, not
+ward count) is currently furthest below its target. ~2.7% of segments
+(465/17,195) don't fall strictly inside any ward polygon (boundary-
+adjacent, same edge case `build_gazetteer.py`'s README already documents
+for gazetteer points) — assigned to their nearest ward by centroid
+distance rather than left out.
+
+**Result (19 Sep 2026):** achieved 70.43/13.15/16.42% — close to target.
+Ward assignment: val = wards {170, 174}, test = wards {169, 182}, train =
+the other 12. Smoke-tested against task 3.6's real baseline predictions
+(not synthetic data) — the harness computes correctly, but **surfaces a
+real limitation of this split worth knowing before trusting it: with only
+16 wards, val/test each land just ~2 of them, so per-split metrics carry
+real variance from which specific wards get held out**, not just model
+quality. Concretely, on the rising→peak transition alone: train accuracy
+6.99%, val 53.54%, test 3.54% — a huge, disclosed swing from the same
+underlying baseline model, driven by wards 170/174 (val) happening to have
+a very different flood rate than the train/test ward mix. Task 4.2's
+hyperparameter tuning should account for this (e.g. k-fold across wards)
+rather than trust a single val split's numbers at face value.
+
+Outputs (`data/processed/model_input/`, gitignored): `segment_splits.csv`
+(segment_id, ward_no, split) and the validation report.
