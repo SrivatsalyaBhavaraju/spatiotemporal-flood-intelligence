@@ -520,7 +520,7 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 |---|---|---|---|---|
 | 5.1 | Compute F1/accuracy per phase transition — GNN model | P3 | 4.2 | ✅ |
 | 5.2 | Compute F1/accuracy per phase transition — baseline model | P1 | 4.3 | ✅ |
-| 5.3 | **Baseline vs. GNN comparison** — plots/tables, test the core claim (working.md §1.6) | P1 + P3 | 5.1, 5.2 | ☐ |
+| 5.3 | **Baseline vs. GNN comparison** — plots/tables, test the core claim (working.md §1.6) | P1 + P3 | 5.1, 5.2 | ✅ |
 | 5.4 | Sanity-check ground truth against any comparison anomalies | P2 | 5.3 | ✅ |
 | 5.5 | Evaluate Objective 2 precision/recall (classification + geoparsing accuracy) | P4 | 4.5 | ☐ |
 | 5.6 | **Mid-project guide checkpoint meeting** | All | 5.3, 5.5 | ☐ |
@@ -536,6 +536,19 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 **Conclusion: the test AUC collapse (5.1) is a real, ground-truth-driven limitation — not a GNN bug, not a coding error.** With only 16 wards and a fusion rule that skews most wards toward "everyone floods," whether an informative ward lands in train/val/test is close to a coin flip. **Deliberately not fixed** — a stratified re-split (by within-ward label variance, not just segment count) is recorded as a recommendation for future work, not retrofitted into this sanity-check task. 9 new tests; 311 passing repo-wide, no regressions.
 
 **Next:** task 5.3's baseline-vs-GNN comparison/plots can now cite this root cause directly rather than present the test AUC collapse as an unexplained anomaly.
+
+**5.3 done (20 Sep 2026)** — merged via PR [#25](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/25) (`src/models/compare_baseline_vs_gnn.py`). Builds the plots/tables testing working.md §1.6's core claim, using 5.1/5.2's reports and citing 5.4's root cause directly rather than presenting an unexplained anomaly.
+
+**A methodological precision correction, found while building this, not hidden:** task 4.2's "final tuned" model was retrained on train+val *combined*, so its val AUC/F1 (cited in 5.1's own note) is **not a fair holdout measurement** — the model was fit to those exact labels. Computed AUC for task 4.1's *original* model instead (trained on "train" only, so val **and** test are genuinely unseen) as the methodologically clean comparison, and appended a correction note to 5.1's README rather than silently rewriting it.
+
+| Model | train AUC | val AUC (fair) | test AUC (fair) |
+|---|---|---|---|
+| 4.1 original (train-only) | ~0.73–0.78 | **~0.59–0.60** | ~0.42–0.49 |
+| 4.2 final tuned (train+val) | ~0.70–0.76 | ~0.70–0.72 (not fair — fit to it) | ~0.46–0.50 |
+
+**Real, honest verdict — not a simple yes/no:** val (the fair holdout): **weakly supported** — AUC ~0.59–0.60 on both flood-relevant transitions, real if modest, landing specifically on ward 170, the one ward 5.4 found has genuine elevation-flood variance. Test: **inconclusive, not negative** — 5.4 already explains why. The baseline has no comparable AUC at all (`predict_transition()` outputs hard 0/1 rules, not a ranked probability) — itself part of the comparison: the GNN can express graded uncertainty a fixed rule structurally cannot, even where post-threshold F1 looks similar (`peak→receding`). Plots: `docs/figures/phase5_f1_comparison.png`, `docs/figures/phase5_auc_fair_holdout.png`. 7 new tests; 318 passing repo-wide, no regressions.
+
+**Phase 5's core comparison is now complete and honestly presentable.** Next: 5.5 (Objective 2 precision/recall) is independent of the GNN/baseline thread; 5.6 is a human checkpoint meeting, not a code task.
 
 ---
 
