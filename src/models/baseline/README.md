@@ -80,3 +80,50 @@ against this table, not just against the aggregate number.
 
 Outputs (`data/processed/ground_truth/`, gitignored): `baseline_predictions.csv`
 (segment_id, phase pair, y_true, y_pred) and `baseline_evaluation_report.json`.
+
+**Updated 20 Sep 2026 (task 4.4):** the numbers above predate task 4.4's
+ground-truth fix (peak/receding no longer share an identical label set).
+`peak→receding` F1 is now **0.919** (was 0.933) — still a structurally
+easy case for the same reason (Rule A's rainfall trigger floods nearly
+every segment at x_t=peak, regardless of elevation), just slightly less
+so. `pre_event→rising` and `rising→peak` are unaffected. See task 4.4's
+`detect_flood_recession.py` section above for the full story.
+
+## `evaluate_per_transition.py` — task 5.2
+
+Computes F1/accuracy per transition **per split** (train/val/test) against
+the current `baseline_predictions.csv`, in the same report shape as task
+5.1's GNN report, for task 5.3's direct comparison. Reuses task 3.7's
+`evaluate_split()`, not reimplemented — this just formalizes into its own
+dedicated, re-runnable artifact what was previously only a smoke-test side
+effect buried inside `build_training_harness.py`, which had gone stale
+(it was computed before task 4.4's ground-truth fix).
+
+```bash
+python src/models/baseline/evaluate_per_transition.py
+```
+
+**Real result (20 Sep 2026)** — reproduces task 3.7's own smoke-test
+numbers exactly for `rising→peak` (train/val/test accuracy 6.99%/53.54%/
+3.54%, confirming no drift there), plus the post-4.4 `peak→receding`
+numbers:
+
+| Transition | Train F1 | Val F1 | Test F1 |
+|---|---|---|---|
+| pre_event→rising | 0.0 | 0.0 | 0.0 |
+| rising→peak | 0.0 | 0.0 | 0.0 |
+| peak→receding | 0.950 | 0.604 | 0.973 |
+
+**Worth reading alongside task 5.1's GNN finding, not in isolation:** on
+`peak→receding`, the baseline predicts "flooded" for essentially 100% of
+segments in every split too (Rule A's rainfall trigger fires uniformly at
+x_t=peak, independent of elevation) — the SAME "matches the base rate by
+predicting everyone positive" pattern task 5.1 found in the tuned GNN, not
+a coincidence. Unlike the GNN, this is fully expected and disclosed for
+the baseline (it's a deterministic rule, not something meant to show
+learned per-segment discrimination) — the concerning finding is that the
+GNN's equivalent numbers reflect the same shallow behavior, not genuine
+propagation learning. Task 5.4 is where this gets sanity-checked properly.
+
+Outputs (`data/processed/ground_truth/`, gitignored):
+`baseline_final_per_transition_report.json`.
