@@ -518,12 +518,18 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
  
 | # | Task | Owner | Depends on | Status |
 |---|---|---|---|---|
-| 5.1 | Compute F1/accuracy per phase transition — GNN model | P3 | 4.2 | ☐ |
-| 5.2 | Compute F1/accuracy per phase transition — baseline model | P1 | 4.3 | ☐ |
+| 5.1 | Compute F1/accuracy per phase transition — GNN model | P3 | 4.2 | ✅ |
+| 5.2 | Compute F1/accuracy per phase transition — baseline model | P1 | 4.3 | ✅ |
 | 5.3 | **Baseline vs. GNN comparison** — plots/tables, test the core claim (working.md §1.6) | P1 + P3 | 5.1, 5.2 | ☐ |
 | 5.4 | Sanity-check ground truth against any comparison anomalies | P2 | 5.3 | ☐ |
 | 5.5 | Evaluate Objective 2 precision/recall (classification + geoparsing accuracy) | P4 | 4.5 | ☐ |
 | 5.6 | **Mid-project guide checkpoint meeting** | All | 5.3, 5.5 | ☐ |
+
+**5.1, 5.2 done (20 Sep 2026)** — merged via PR [#23](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/23) (`src/models/gnn/evaluate_final_model.py`, `src/models/baseline/evaluate_per_transition.py`). 5.1 reproduces task 4.2's final tuned GNN model exactly (`train_model()` confirmed deterministic — this script's test-split metrics matched task 4.2's saved numbers byte-for-byte) and evaluates it on all three splits, not just test. 5.2 formalizes the baseline's per-transition/per-split evaluation into its own dedicated, current report (the version embedded in `build_training_harness.py` had gone stale after task 4.4's ground-truth fix); reproduces task 3.7's own reference numbers exactly (rising→peak train/val/test accuracy 6.99%/53.54%/3.54%).
+
+**A real, important finding surfaced while doing this — not hidden:** F1 at one tuned threshold can look excellent purely from matching a transition's base rate, and that's what direct inspection found here — the final tuned GNN predicts "flooded" for **100% of test segments on every transition**, zero exceptions. Added AUC-ROC (threshold-independent, hand-rolled to avoid a new dependency) to check whether this reflects real discrimination. Real result: **AUC ~0.70–0.76 on train/val (genuine signal) but collapses to ~0.46–0.50 on test** (statistically indistinguishable from random) for both flood-relevant transitions. The model learned something real — it just doesn't transfer to whichever 2–3 wards land in the test split. This sharpens task 3.7/4.2's already-disclosed small-N-of-wards variance into a concrete, quantified problem: **the reported F1=0.982/0.973 test "wins" over the baseline are correct arithmetic but do not demonstrate learned per-segment discrimination on held-out wards.** Confirmed with the user this should be reported accurately (not hidden, not fixed prematurely) and flagged for task 5.4, which exists specifically to sanity-check exactly this kind of comparison anomaly. 17 new tests; 302 passing repo-wide, no regressions.
+
+**Next:** task 5.4 needs to investigate this AUC collapse before task 5.3's baseline-vs-GNN comparison/plots can be presented as a meaningful result rather than a base-rate coincidence.
 
 ---
 
