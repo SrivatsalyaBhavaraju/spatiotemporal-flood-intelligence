@@ -45,17 +45,6 @@ def load_phase_layer(phase_name: str) -> gpd.GeoDataFrame:
     return gpd.read_file(path)
 
 
-def build_style_function(column: str):
-    """Folium GeoJson `style_function` -- colors each feature by `column`
-    (true_flood / baseline_pred / gnn_pred), all sharing the same
-    dry/flooded status colors so switching views doesn't repaint meaning
-    onto a different color (dataviz skill: color follows the entity)."""
-    def style_function(feature):
-        value = feature["properties"].get(column, 0)
-        return {"color": flood_fill_color(value), "weight": 2, "opacity": 0.85}
-    return style_function
-
-
 def load_wards() -> gpd.GeoDataFrame:
     return gpd.read_file(WARDS_PATH)
 
