@@ -564,12 +564,20 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 
 | # | Task | Owner | Depends on | Status |
 |---|---|---|---|---|
-| 6.1 | Build Streamlit/Folium dashboard skeleton | P1 | 5.3 | ☐ |
-| 6.2 | Add graph-state animation layer (baseline vs. GNN over time) | P1 | 6.1 | ☐ |
-| 6.3 | Add distress marker layer from Objective 2 | P4 | 6.1, 5.5 | ☐ |
+| 6.1 | Build Streamlit/Folium dashboard skeleton | P1 | 5.3 | ✅ |
+| 6.2 | Add graph-state animation layer (baseline vs. GNN over time) | P1 | 6.1 | ✅ |
+| 6.3 | Add distress marker layer from Objective 2 | P4 | 6.1, 5.5 | ✅ |
 | 6.4 | Polish model outputs and write up results | P2 + P3 | 5.3 | ☐ |
 
 **This is where Objective 1 and Objective 2 visibly become one system** — the dashboard is the artifact that proves it.
+
+**6.1, 6.2, 6.3 done (20 Sep 2026)** — merged via PR [#27](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/27) (`src/dashboard/app.py`, `src/dashboard/prepare_dashboard_data.py`, `src/dashboard/data_loader.py`). One Streamlit app, 5 tabs: Overview (real KPIs from tasks 3.4/4.2/5.1/5.3/5.4/5.5), Flood Propagation (6.2 — animated map, phase slider + play/pause, toggles ground truth/baseline/GNN across all 17,195 segments), Distress Signals (6.3 — real, pulsing markers for every Objective 2 pipeline output that classified as distress AND resolved to a coordinate), Model Comparison (interactive Plotly recreations of task 5.3), Data & Limitations (task 5.4/5.5's findings as designed insight cards, not hidden behind the polish). `prepare_dashboard_data.py` joins real task outputs into per-phase layers, running task 5.1's already-trained model once (not retraining) for per-segment predictions.
+
+**Two real bugs found and fixed while building this, not hidden:** (1) `streamlit-folium`'s `st_folium()` silently hung with this environment's streamlit/streamlit-folium version pairing — zero iframes ever mounted, no console error. Confirmed via a minimal reproduction before concluding it was a real incompatibility. Fixed by dropping the custom-component dependency entirely — `folium`'s own `_repr_html_()` embedded via Streamlit's built-in `components.html()` needs no handshake, and nothing was lost since the app never used `st_folium`'s click-return functionality. (2) CartoDB's free dark tiles now require an API key (a real provider change) — the map rendered blank with only an easy-to-miss `UserWarning` in the server log. Switched to Esri's dark-gray-canvas tiles, which need no key.
+
+**Verified with a real running instance, not just import-checked:** the Claude-in-Chrome extension wasn't available this session, so installed Playwright and drove the actual launched app — all 5 tabs, all 3 prediction views, multiple phases, screenshots inspected at each step, zero console errors. The flood propagation map alone makes working.md §1.6's core claim visually vivid: at `peak`, ground truth and the GNN both turn the city red; the baseline stays entirely blue, visibly failing to anticipate the flood. 10 new tests; 337 passing repo-wide, no regressions.
+
+**Next:** 6.4 (polish model outputs and write up results) is the last Phase 6 task.
 
 ---
 
