@@ -522,7 +522,7 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 | 5.2 | Compute F1/accuracy per phase transition — baseline model | P1 | 4.3 | ✅ |
 | 5.3 | **Baseline vs. GNN comparison** — plots/tables, test the core claim (working.md §1.6) | P1 + P3 | 5.1, 5.2 | ✅ |
 | 5.4 | Sanity-check ground truth against any comparison anomalies | P2 | 5.3 | ✅ |
-| 5.5 | Evaluate Objective 2 precision/recall (classification + geoparsing accuracy) | P4 | 4.5 | ☐ |
+| 5.5 | Evaluate Objective 2 precision/recall (classification + geoparsing accuracy) | P4 | 4.5 | ✅ |
 | 5.6 | **Mid-project guide checkpoint meeting** | All | 5.3, 5.5 | ☐ |
 
 **5.1, 5.2 done (20 Sep 2026)** — merged via PR [#23](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/23) (`src/models/gnn/evaluate_final_model.py`, `src/models/baseline/evaluate_per_transition.py`). 5.1 reproduces task 4.2's final tuned GNN model exactly (`train_model()` confirmed deterministic — this script's test-split metrics matched task 4.2's saved numbers byte-for-byte) and evaluates it on all three splits, not just test. 5.2 formalizes the baseline's per-transition/per-split evaluation into its own dedicated, current report (the version embedded in `build_training_harness.py` had gone stale after task 4.4's ground-truth fix); reproduces task 3.7's own reference numbers exactly (rising→peak train/val/test accuracy 6.99%/53.54%/3.54%).
@@ -549,6 +549,14 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 **Real, honest verdict — not a simple yes/no:** val (the fair holdout): **weakly supported** — AUC ~0.59–0.60 on both flood-relevant transitions, real if modest, landing specifically on ward 170, the one ward 5.4 found has genuine elevation-flood variance. Test: **inconclusive, not negative** — 5.4 already explains why. The baseline has no comparable AUC at all (`predict_transition()` outputs hard 0/1 rules, not a ranked probability) — itself part of the comparison: the GNN can express graded uncertainty a fixed rule structurally cannot, even where post-threshold F1 looks similar (`peak→receding`). Plots: `docs/figures/phase5_f1_comparison.png`, `docs/figures/phase5_auc_fair_holdout.png`. 7 new tests; 318 passing repo-wide, no regressions.
 
 **Phase 5's core comparison is now complete and honestly presentable.** Next: 5.5 (Objective 2 precision/recall) is independent of the GNN/baseline thread; 5.6 is a human checkpoint meeting, not a code task.
+
+**5.5 done (20 Sep 2026)** — merged via PR [#26](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/26) (`src/nlp/evaluate_objective2_precision_recall.py`). Consolidates task 2.10/3.8's piecemeal metrics into one Objective 2-level report, and fills a real gap neither of them checked: geoparsing **precision** — 2.10 only ever measured recall against a known-substring baseline.
+
+**A real false positive found while building this, not hidden:** read all 37 real geoparser matches on task 1.13's corpus in context (not just the known-substring subset 2.10 checked). 36 correct. One is not: **"Nandambakkam"** (a real, distinct Chennai locality, confirmed from its source sentence listing it alongside Guindy/Adyar/Porur/Meenambakkam) is **absent from the gazetteer**, so `fuzz.ratio` fuzzy-matches it to **"Adambakkam"** — a different real place that IS present — purely on 90.9% string similarity, clearing `SCORE_CUTOFF=85`. Disclosed as a documented `KNOWN_FALSE_POSITIVES` entry, not excluded (same precedent as task 2.9's "World Bank"/"Royal Enfield").
+
+**Real result:** classification precision/recall (task 3.8 LOOCV) 0.889/1.0; geoparsing recall (task 2.10) 1.0; geoparsing precision (new) **0.973** (36/37); end-to-end pipeline precision/recall 0.889/1.0. **The end-to-end number matching the classifier-only number is disclosed, not presented as a free lunch:** task 1.13's own collection method only kept passages that already mention a gazetteer place, so geoparsing can't be a bottleneck on *this* corpus by construction — task 4.5's own smoke test already found a real case where it would be, on genuinely new text. 9 new tests; 327 passing repo-wide, no regressions.
+
+**Phase 5 is now fully complete except 5.6, a human checkpoint meeting with the project guide — not a code task. Tell me when it happens and I'll mark it done with whatever notes you want recorded.**
 
 ---
 
