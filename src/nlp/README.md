@@ -199,3 +199,91 @@ improvements the rigid exact-match baseline can't.
 
 **Outputs** (`data/raw/gazetteer/`, committed): `fuzzy_geoparse_validation_report.json`
 — per-passage known/found/recovered/absorbed/real_misses/extra breakdown.
+
+## `label_distress_dataset.py` — task 2.11
+
+Interactive hand-labeling tool for task 1.13's real 19-passage corpus (the
+"few hundred posts" in working.md's original description referred to the
+infeasible live-social-media plan — see task 1.13's own note; this labels
+what actually exists). A labeling TOOL, not a labeler: presents each
+passage to a human one at a time and records their DISTRESS / NOT_DISTRESS
+/ UNCERTAIN judgment — never assigns a label itself.
+
+```bash
+python src/nlp/label_distress_dataset.py                    # interactive session
+python src/nlp/label_distress_dataset.py --report           # progress only, no prompts
+```
+
+Stable text-hash `passage_id`s (re-running task 1.13's collector can't
+silently orphan a label) and a write-after-every-label design (nothing
+lost on interruption). **All 19 real passages labeled (19 Sep 2026): 8
+distress, 9 not_distress, 2 uncertain.** Labels spot-checked against the
+underlying text before merging — firsthand/directly-reported acute impact
+(evacuated by boat, water inside homes) marked distress; political
+statements and institutional announcements marked not_distress even when
+the surrounding article is flood-related.
+
+Outputs (`data/raw/distress_text/`, committed): `labeled_distress_dataset.csv`,
+`labeling_progress_report.json`.
+
+## `finetune_distress_classifier.py` — task 3.8
+
+Lightly fine-tunes a pretrained multilingual transformer (MuRIL,
+working.md §2.3's own choice) into a distress/not-distress classifier on
+task 2.11's hand-labeled data.
+
+```bash
+python src/nlp/finetune_distress_classifier.py
+```
+
+**Real data-size reality check:** working.md specifies "a few hundred
+posts" — the real corpus has 19, 17 binary-labeled (2 "uncertain" excluded
+— this task is binary per working.md). Fine-tunes what actually exists,
+disclosed as such.
+
+**Adaptation strategy — confirmed with the user (20 Sep 2026), no spec
+exists in working.md at this sample size:** with n=17 vs. MuRIL-base's
+237M parameters, full end-to-end fine-tuning would just memorize the
+training set. Chosen instead: freeze the entire MuRIL body, extract a
+768-dim attention-mask-weighted mean-pooled sentence embedding, train only
+a linear classification head — standard "linear probing" practice for
+tiny-data regimes, and the most defensible reading of working.md's
+"lightly fine-tuned" at n=17.
+
+**A real bug found and fixed, same class as task 4.1's GNN bug, not
+hidden:** the first real run's leave-one-out CV (LOOCV, k=n=17 — the only
+honest evaluation at this sample size) came back completely degenerate:
+F1=0.0, recall=0.0, predicting "not distress" for every held-out example.
+Diagnosed rather than accepted: full-data train accuracy was only 53%
+with every predicted probability clustered at ~0.47 regardless of label —
+the head barely moved off its initial output. Raw MuRIL embeddings have
+tiny per-dimension scale (std ~0.023), starving gradient flow exactly like
+task 4.1's unnormalized GNN features did. Ruled out "the embeddings just
+aren't separable" first: 1-NN classification using raw cosine similarity
+on the SAME embeddings got 88% LOOCV accuracy, so the signal was there —
+the raw-scale linear head just couldn't reach it. Fixed with per-fold,
+train-only z-score standardization (never leaking the held-out example's
+own statistics into its own prediction, same discipline as task 4.1's
+`compute_feature_stats()`), which took LOOCV F1 from 0.0 to **0.9412**.
+
+**Real result (20 Sep 2026):** LOOCV — precision 0.889, recall 1.0 (catches
+every real distress example), F1 **0.9412**, accuracy 94.12% (1 false
+positive out of 17 folds). **Heavily caveated, not oversold:** with n=17,
+each fold's error swings the metric by ~5.9% — this is a rough estimate,
+not a production-grade confidence number. Verified end-to-end on genuinely
+new text after training the final head: correctly classified an unseen
+first-person distress account (p=0.998) and an unseen institutional
+announcement (p=0.0002) it had never encountered in any form.
+
+**Disclosed, inherited limitation (not new here):** MuRIL's core strength
+is code-mixed Indian-language text; the real corpus is English news/report
+register (task 1.13's infeasibility pivot). This proves the pipeline
+architecture task 4.5 needs, not that MuRIL is the ideal model for this
+specific text.
+
+`predict_distress(text, ...)` is the reusable inference entry point task
+4.5 imports directly.
+
+Outputs (`data/processed/nlp/`, gitignored): `distress_classifier_head.pt`
+(head weights + standardization stats), `distress_classifier_metadata.json`,
+`distress_classifier_loocv_report.json`.
