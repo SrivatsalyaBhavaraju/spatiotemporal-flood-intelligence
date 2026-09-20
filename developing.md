@@ -521,7 +521,7 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 | 5.1 | Compute F1/accuracy per phase transition — GNN model | P3 | 4.2 | ✅ |
 | 5.2 | Compute F1/accuracy per phase transition — baseline model | P1 | 4.3 | ✅ |
 | 5.3 | **Baseline vs. GNN comparison** — plots/tables, test the core claim (working.md §1.6) | P1 + P3 | 5.1, 5.2 | ☐ |
-| 5.4 | Sanity-check ground truth against any comparison anomalies | P2 | 5.3 | ☐ |
+| 5.4 | Sanity-check ground truth against any comparison anomalies | P2 | 5.3 | ✅ |
 | 5.5 | Evaluate Objective 2 precision/recall (classification + geoparsing accuracy) | P4 | 4.5 | ☐ |
 | 5.6 | **Mid-project guide checkpoint meeting** | All | 5.3, 5.5 | ☐ |
 
@@ -529,7 +529,13 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 
 **A real, important finding surfaced while doing this — not hidden:** F1 at one tuned threshold can look excellent purely from matching a transition's base rate, and that's what direct inspection found here — the final tuned GNN predicts "flooded" for **100% of test segments on every transition**, zero exceptions. Added AUC-ROC (threshold-independent, hand-rolled to avoid a new dependency) to check whether this reflects real discrimination. Real result: **AUC ~0.70–0.76 on train/val (genuine signal) but collapses to ~0.46–0.50 on test** (statistically indistinguishable from random) for both flood-relevant transitions. The model learned something real — it just doesn't transfer to whichever 2–3 wards land in the test split. This sharpens task 3.7/4.2's already-disclosed small-N-of-wards variance into a concrete, quantified problem: **the reported F1=0.982/0.973 test "wins" over the baseline are correct arithmetic but do not demonstrate learned per-segment discrimination on held-out wards.** Confirmed with the user this should be reported accurately (not hidden, not fixed prematurely) and flagged for task 5.4, which exists specifically to sanity-check exactly this kind of comparison anomaly. 17 new tests; 302 passing repo-wide, no regressions.
 
-**Next:** task 5.4 needs to investigate this AUC collapse before task 5.3's baseline-vs-GNN comparison/plots can be presented as a meaningful result rather than a base-rate coincidence.
+**5.4 done (20 Sep 2026)** — merged via PR [#24](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/24) (`src/ground_truth/sanity_check_comparison_anomalies.py`). Done immediately after 5.1/5.2 rather than after 5.3 (its listed dependency) — the anomaly it needed to sanity-check was already found, and 5.3's comparison/plots would have been built on an unexplained coincidence otherwise.
+
+**Root cause, confirmed with real data, not guessed:** checked the actual per-ward relationship between elevation and the fused flood label across all 16 wards. At the `peak` transition, **only 1 of 16 wards (ward 170) has a minority class ≥10% of its segments** — every other ward, including **both** test wards (169, 182), is >90% one-sided (169: 96.5% flooded, 182: 96.4% flooded). Task 3.4/4.4's fusion (dominated by news' broad ward-level fallback — only 5.4% of the flooded set is SAR-covered) pushes most wards toward near-total inundation, leaving almost no within-ward variance for *any* feature-based model — baseline or GNN — to demonstrate skill against outside that one ward. And that one informative ward landed in **val, not test**, purely by chance: test wards show no meaningful elevation-flood relationship (corr +0.025, +0.166 — near zero and the *wrong* sign versus the physically sensible negative correlation the model actually learned from train/val, -0.137/-0.286).
+
+**Conclusion: the test AUC collapse (5.1) is a real, ground-truth-driven limitation — not a GNN bug, not a coding error.** With only 16 wards and a fusion rule that skews most wards toward "everyone floods," whether an informative ward lands in train/val/test is close to a coin flip. **Deliberately not fixed** — a stratified re-split (by within-ward label variance, not just segment count) is recorded as a recommendation for future work, not retrofitted into this sanity-check task. 9 new tests; 311 passing repo-wide, no regressions.
+
+**Next:** task 5.3's baseline-vs-GNN comparison/plots can now cite this root cause directly rather than present the test AUC collapse as an unexplained anomaly.
 
 ---
 
