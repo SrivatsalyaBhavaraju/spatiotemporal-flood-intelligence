@@ -328,3 +328,54 @@ location-mentioning passages).
 
 Outputs (`data/processed/nlp/`, gitignored): `objective2_pipeline_output.csv`,
 `objective2_pipeline_validation_report.json`.
+
+## `evaluate_objective2_precision_recall.py` — task 5.5
+
+Consolidates what tasks 2.10/3.8 already measured piecemeal into one
+Objective 2-level report, and fills a real gap neither of them checked:
+geoparsing **precision** (2.10 only ever measured recall against a
+known-substring baseline — never "of everything matched, how much was
+actually correct?").
+
+```bash
+python src/nlp/evaluate_objective2_precision_recall.py
+```
+
+**A real false positive found while building this, not hidden:** ran the
+geoparser over every real passage (not just the known-substring subset
+2.10 checked) and read all 37 real matches in context. 36 are correct.
+One is not: **"Nandambakkam"** (a real, distinct Chennai locality,
+confirmed from its source sentence — listed alongside Guindy/Adyar/Porur/
+Meenambakkam, all different real areas) is **absent from the gazetteer**,
+so `fuzz.ratio` fuzzy-matched it to **"Adambakkam"** — a different real
+place that IS present — purely on 90.9% string similarity, clearing
+`SCORE_CUTOFF=85`. A genuine precision failure: an absent place silently
+resolves to the WRONG coordinate instead of being flagged unknown.
+Disclosed as `KNOWN_FALSE_POSITIVES`, not excluded (same precedent as
+task 2.9's "World Bank"/"Royal Enfield"). One more case ("storm water
+drains" → the specific OSM feature "Stormwater Drain") reviewed and
+judged borderline — geographically fine (right neighborhood) but
+conceptually a generic phrase over-matched to one specific named entity —
+counted as correct for the headline number, flagged in the report.
+
+**Real result (20 Sep 2026):**
+
+| Metric | Value |
+|---|---|
+| Classification precision/recall (task 3.8 LOOCV) | 0.889 / 1.0 (F1=0.9412) |
+| Geoparsing recall (task 2.10) | 1.0 (27/31 known + 5 extra) |
+| Geoparsing precision (new) | **0.973** (36/37) |
+| End-to-end pipeline precision/recall | 0.889 / 1.0 |
+
+**The end-to-end number is identical to the classifier's own number —
+disclosed why, not presented as a free lunch:** joining task 3.8's honest
+LOOCV predictions (never fit on the held-out example) with geoparsing on
+the same 17 passages gives EXACTLY the classifier-only precision/recall.
+Reason: task 1.13's own collection method only kept passages that already
+mention a gazetteer place, so every one of the 17 labeled examples has
+≥1 resolvable location by construction — geoparsing can't be a
+bottleneck on *this* corpus. Not evidence geoparsing failure never
+matters — task 4.5's own smoke test already found a real case ("We are
+stranded...") where a genuine distress post has no resolvable location.
+
+Outputs (`data/processed/nlp/`, gitignored): `objective2_precision_recall_report.json`.
