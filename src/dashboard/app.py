@@ -131,8 +131,22 @@ def build_animated_map_html(view_label: str, column: str) -> str:
     own `setStyle()` per feature from a `setInterval()` loop already
     running in the browser. Geometry (fixed across phases) is fetched
     once; only each phase's color list is precomputed and embedded.
+
+    *** ELEVATION-STAGGERED TRANSITIONS, NOT A LITERAL FLOW SIMULATION ***
+    task 5.4 already found the real ground truth has no sub-phase timing/
+    velocity/depth data -- there is nothing to animate a genuine water-flow
+    physics simulation FROM. What we do have is real per-segment elevation
+    (task 2.3). So a transition doesn't flip all changed segments at once:
+    newly-flooding segments repaint lowest-elevation-first (water fills low
+    ground first) and newly-receding segments repaint highest-elevation-first
+    (marginal high ground drains first, low ground stays flooded longest).
+    This is a disclosed, physically-motivated illustrative stagger grounded
+    in real elevation data -- not a claim that this is the literal, timed
+    path floodwater took (that data doesn't exist for this event).
     """
-    base = load_phase_layer(PHASES[0])[["segment_id", "geometry"]].reset_index(drop=True)
+    base_full = load_phase_layer(PHASES[0])[["segment_id", "geometry", "elevation_m"]].reset_index(drop=True)
+    base = base_full[["segment_id", "geometry"]]
+    elevations = base_full["elevation_m"].fillna(base_full["elevation_m"].median()).tolist()
     wards = load_wards()
 
     colors_by_phase = []
@@ -178,13 +192,46 @@ def build_animated_map_html(view_label: str, column: str) -> str:
         whenReady(function() {{
             var colors = {json.dumps(colors_by_phase)};
             var labels = {json.dumps([PHASE_LABELS[p] for p in PHASES])};
+            var elevations = {json.dumps(elevations)};
+            var floodedColor = {json.dumps(COLOR_FLOODED)};
             var sublayers = {geo.get_name()}.getLayers();
+            var current = colors[0].slice();
             var idx = 0;
             var timer = null;
+            var sweepTimer = null;
+            var TICK_MS = 1500;
+            var SWEEP_STEPS = 40;
+            var SWEEP_STEP_MS = 20;  // 40 * 20 = 800ms sweep, comfortably inside TICK_MS
+
             function applyPhase(i) {{
+                var target = colors[i];
+                var flooding = [];    // newly dry -> flooded: lowest elevation repaints first
+                var receding = [];    // newly flooded -> dry: highest elevation repaints first
                 for (var j = 0; j < sublayers.length; j++) {{
-                    sublayers[j].setStyle({{color: colors[i][j]}});
+                    if (target[j] !== current[j]) {{
+                        var entry = {{idx: j, elev: elevations[j]}};
+                        if (target[j] === floodedColor) {{ flooding.push(entry); }} else {{ receding.push(entry); }}
+                    }}
                 }}
+                flooding.sort(function(a, b) {{ return a.elev - b.elev; }});   // low ground first
+                receding.sort(function(a, b) {{ return b.elev - a.elev; }});   // high ground first
+                var ordered = flooding.concat(receding);
+
+                if (sweepTimer) {{ clearTimeout(sweepTimer); sweepTimer = null; }}
+                var chunkSize = Math.max(1, Math.ceil(ordered.length / SWEEP_STEPS));
+                var step = 0;
+                function sweep() {{
+                    var start = step * chunkSize;
+                    var end = Math.min(start + chunkSize, ordered.length);
+                    for (var k = start; k < end; k++) {{
+                        var c = ordered[k];
+                        sublayers[c.idx].setStyle({{color: target[c.idx]}});
+                        current[c.idx] = target[c.idx];
+                    }}
+                    step++;
+                    if (start < ordered.length) {{ sweepTimer = setTimeout(sweep, SWEEP_STEP_MS); }}
+                }}
+                sweep();
                 document.getElementById('phase-indicator-{geo.get_name()}').innerText = labels[i];
             }}
             document.getElementById('play-btn-{geo.get_name()}').onclick = function() {{
@@ -192,7 +239,7 @@ def build_animated_map_html(view_label: str, column: str) -> str:
                 timer = setInterval(function() {{
                     idx = (idx + 1) % colors.length;
                     applyPhase(idx);
-                }}, 1200);
+                }}, TICK_MS);
             }};
             document.getElementById('pause-btn-{geo.get_name()}').onclick = function() {{
                 clearInterval(timer);
