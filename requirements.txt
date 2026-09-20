@@ -47,12 +47,18 @@ pulp
 # Dashboard / viz
 streamlit
 folium
+plotly
 fastapi
 uvicorn
 
 # Dev
 pytest
 jupyter
+
+# Headless browser verification for the Streamlit dashboard (task 6.1) -- the
+# Claude-in-Chrome extension isn't always available; `playwright install chromium`
+# after installing this lets you screenshot/console-check the app directly.
+playwright
 
 # Only needed if OSM/Overpass calls fail with SSLCertVerificationError (e.g. behind a
 # corporate TLS-inspection proxy like Sophos) -- makes Python defer to the OS cert
