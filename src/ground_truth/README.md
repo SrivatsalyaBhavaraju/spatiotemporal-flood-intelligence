@@ -399,3 +399,41 @@ Outputs (`data/processed/ground_truth/`, gitignored):
 `sentinel1_recession_check_vv_db.tif`, `sentinel1_recession_check_extent.geojson`,
 `recovered_segments.json`, `flood_recession_validation_report.json`.
 
+## `sanity_check_comparison_anomalies.py` — task 5.4
+
+Root-causes the anomaly task 5.1 surfaced: the tuned GNN's test-split AUC
+collapses to ~0.46–0.50 (random) despite ~0.70–0.76 on train/val. Checked
+the actual per-ward relationship between elevation and the fused flood
+label directly, rather than guessing.
+
+```bash
+python src/ground_truth/sanity_check_comparison_anomalies.py
+```
+
+**Real finding (20 Sep 2026):** at the `peak` transition, checked all 16
+wards — **only 1 (ward 170) has a minority class ≥10% of its segments**;
+every other ward, including **both** test wards (169, 182), is >90%
+one-sided (169: 96.5% flooded, 182: 96.4% flooded). Task 3.4/4.4's fusion
+(dominated by news' broad ward-level fallback, only 5.4% of the flooded
+set is SAR-covered) pushes most wards toward near-total inundation,
+leaving essentially no within-ward variance for any feature-based model —
+baseline or GNN — to demonstrate skill against, outside that one ward.
+And that one ward landed in **val, not test**: test wards show no
+meaningful elevation-flood relationship (corr +0.025, +0.166 — near zero,
+and the *wrong* sign versus the physically sensible negative correlation
+the model actually learned from train/val, -0.137/-0.286).
+
+**Conclusion: the test AUC collapse is a real, ground-truth-driven
+limitation — not a GNN bug, not a coding error.** With only 16 wards and
+a fusion rule that skews most wards toward "everyone floods," whether an
+informative ward lands in train/val/test is close to a coin flip.
+**Deliberately not fixed here** — a stratified re-split is a new
+methodology decision needing its own scoping (recorded as a
+recommendation in the report), not something to slip into a sanity-check
+task.
+
+Outputs (`data/processed/ground_truth/`, gitignored):
+`sanity_check_comparison_anomalies_report.json` (full per-ward table for
+both flood-relevant transitions, informativeness summary, conclusion,
+recommendation).
+
