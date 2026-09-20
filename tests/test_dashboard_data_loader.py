@@ -17,7 +17,6 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.dashboard.data_loader import (  # noqa: E402
-    build_style_function,
     flood_fill_color,
     parse_resolved_locations,
 )
@@ -32,19 +31,6 @@ class TestFloodFillColor:
 
     def test_accepts_numpy_like_ints(self):
         assert flood_fill_color(1.0) == "#d03b3b"  # int() coercion
-
-
-class TestBuildStyleFunction:
-    def test_colors_by_named_column(self):
-        style_fn = build_style_function("gnn_pred")
-        flooded_feature = {"properties": {"gnn_pred": 1, "baseline_pred": 0}}
-        dry_feature = {"properties": {"gnn_pred": 0, "baseline_pred": 1}}
-        assert style_fn(flooded_feature)["color"] == "#d03b3b"
-        assert style_fn(dry_feature)["color"] == "#2a78d6"
-
-    def test_missing_column_defaults_to_dry(self):
-        style_fn = build_style_function("gnn_pred")
-        assert style_fn({"properties": {}})["color"] == "#2a78d6"
 
 
 class TestParseResolvedLocations:

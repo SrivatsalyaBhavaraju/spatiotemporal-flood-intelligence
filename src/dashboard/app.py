@@ -10,8 +10,8 @@ All data is real -- pre-joined by prepare_dashboard_data.py or read
 directly from tasks 3.4/4.3/5.1/5.3/5.4/5.5's own generated reports.
 Nothing here recomputes a model or invents a number.
 """
+import json
 import sys
-import time
 from pathlib import Path
 
 import folium
@@ -33,8 +33,8 @@ from src.dashboard.data_loader import (  # noqa: E402
     NLP_DIR,
     PHASES,
     PHASE_LABELS,
-    build_style_function,
     compute_overview_kpis,
+    flood_fill_color,
     load_distress_markers,
     load_json_report,
     load_phase_layer,
@@ -108,25 +108,101 @@ except FileNotFoundError as e:
     st.stop()
 
 
+VIEW_COLUMNS = [("Ground Truth", "true_flood"), ("Baseline Prediction", "baseline_pred"), ("GNN Prediction", "gnn_pred")]
+
+
 @st.cache_data(show_spinner=False)
-def build_flood_map_html(phase_name: str, column: str, view_label: str) -> str:
-    """Cached so switching back to a previously-viewed phase/model combo
-    is instant -- rendering ~17k GeoJSON features takes a few real
-    seconds the first time (17,195 segments, not a toy dataset)."""
-    layer = load_phase_layer(phase_name)
+def build_animated_map_html(view_label: str, column: str) -> str:
+    """One map, built once, animates all 4 phases entirely client-side via
+    embedded JS -- no Streamlit rerun, no iframe rebuild, per phase change.
+
+    *** REPLACES AN EARLIER, BROKEN DESIGN, NOT A STYLE PREFERENCE ***
+    the first version rebuilt the whole ~6MB map HTML server-side and
+    remounted a new components.html() iframe on every Play tick (driven by
+    time.sleep() + st.rerun() in a loop). Measured directly, not assumed:
+    each tick got progressively SLOWER the longer Play ran (6s, then 13s,
+    25s, 39s, 52s... between ticks in a real Playwright-timed run) --
+    consistent with iframes/Leaflet map instances accumulating rather than
+    being cleanly torn down. On top of that, mutating a widget-keyed
+    session_state entry after the widget existed raised
+    StreamlitWidgetAlreadyInstantiatedError outright. Both problems are
+    structural to "rebuild everything server-side per animation frame" --
+    fixed here by building the map ONCE and animating by calling Leaflet's
+    own `setStyle()` per feature from a `setInterval()` loop already
+    running in the browser. Geometry (fixed across phases) is fetched
+    once; only each phase's color list is precomputed and embedded.
+    """
+    base = load_phase_layer(PHASES[0])[["segment_id", "geometry"]].reset_index(drop=True)
     wards = load_wards()
+
+    colors_by_phase = []
+    for phase in PHASES:
+        layer = load_phase_layer(phase)[["segment_id", column]]
+        merged = base[["segment_id"]].merge(layer, on="segment_id", how="left")
+        values = merged[column].fillna(0).astype(int).tolist()
+        colors_by_phase.append([flood_fill_color(v) for v in values])
+
     m = folium.Map(location=CHENNAI_CENTER, zoom_start=12.3, tiles=None, prefer_canvas=True)
     folium.TileLayer(tiles=DARK_TILES_URL, attr=DARK_TILES_ATTR, name="Dark basemap").add_to(m)
     folium.GeoJson(
-        wards, name="Study wards", style_function=lambda _: {"color": "#52514e", "weight": 1.5, "fillOpacity": 0.02},
+        wards, style_function=lambda _: {"color": "#52514e", "weight": 1.5, "fillOpacity": 0.02},
     ).add_to(m)
-    folium.GeoJson(
-        layer, name=view_label, style_function=build_style_function(column),
-        tooltip=folium.GeoJsonTooltip(
-            fields=["segment_id", "ward_no", "elevation_m", column],
-            aliases=["Segment", "Ward", "Elevation (m)", view_label],
-        ),
-    ).add_to(m)
+
+    geo = folium.GeoJson(
+        # Initial style is constant blue (dry) -- correct as-is for phase 0 (pre_event is always
+        # 100% dry by construction, task 3.4) and JS immediately repaints per column/phase anyway.
+        base, name=view_label, style_function=lambda _: {"color": COLOR_DRY, "weight": 2, "opacity": 0.85},
+        tooltip=folium.GeoJsonTooltip(fields=["segment_id"], aliases=["Segment"]),
+    )
+    geo.add_to(m)
+
+    controls_html = f"""
+    <div style="position:absolute; top:10px; left:60px; z-index:1000; display:flex; gap:8px; align-items:center; font-family:'Inter',system-ui,sans-serif;">
+      <div id="phase-indicator-{geo.get_name()}" style="background:#1a1a19; color:#eb6834; padding:6px 16px; border-radius:8px; font-weight:700; border:1px solid rgba(255,255,255,0.15); min-width:90px; text-align:center;">{PHASE_LABELS[PHASES[0]]}</div>
+      <button id="play-btn-{geo.get_name()}" style="background:#eb6834;color:#fff;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:600;">&#9654; Play</button>
+      <button id="pause-btn-{geo.get_name()}" style="background:#2a2a28;color:#fff;border:1px solid rgba(255,255,255,0.15);padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:600;">&#10074;&#10074; Pause</button>
+    </div>
+    <script>
+    (function() {{
+        // Folium's own script (which defines {geo.get_name()} = L.geoJson(...)) can execute
+        // AFTER this block in the rendered page -- hit a real "geo_json_xxx is not defined"
+        // ReferenceError from this exact race the first time. Poll until Folium's variable
+        // actually exists rather than assuming script order.
+        function whenReady(callback) {{
+            if (typeof {geo.get_name()} !== "undefined") {{
+                callback();
+            }} else {{
+                setTimeout(function() {{ whenReady(callback); }}, 50);
+            }}
+        }}
+        whenReady(function() {{
+            var colors = {json.dumps(colors_by_phase)};
+            var labels = {json.dumps([PHASE_LABELS[p] for p in PHASES])};
+            var sublayers = {geo.get_name()}.getLayers();
+            var idx = 0;
+            var timer = null;
+            function applyPhase(i) {{
+                for (var j = 0; j < sublayers.length; j++) {{
+                    sublayers[j].setStyle({{color: colors[i][j]}});
+                }}
+                document.getElementById('phase-indicator-{geo.get_name()}').innerText = labels[i];
+            }}
+            document.getElementById('play-btn-{geo.get_name()}').onclick = function() {{
+                if (timer) return;
+                timer = setInterval(function() {{
+                    idx = (idx + 1) % colors.length;
+                    applyPhase(idx);
+                }}, 1200);
+            }};
+            document.getElementById('pause-btn-{geo.get_name()}').onclick = function() {{
+                clearInterval(timer);
+                timer = null;
+            }};
+        }});
+    }})();
+    </script>
+    """
+    m.get_root().html.add_child(folium.Element(controls_html))
     return m._repr_html_()
 
 
@@ -191,28 +267,14 @@ with tab_map:
     with left:
         st.markdown("#### Controls")
         view = st.radio("Show", ["Ground Truth", "Baseline Prediction", "GNN Prediction"], index=0)
-        column_map = {"Ground Truth": "true_flood", "Baseline Prediction": "baseline_pred", "GNN Prediction": "gnn_pred"}
+        column_map = dict(VIEW_COLUMNS)
 
-        if "phase_idx" not in st.session_state:
-            st.session_state.phase_idx = 0
-        if "playing" not in st.session_state:
-            st.session_state.playing = False
-
-        phase_idx = st.select_slider(
-            "Phase", options=list(range(len(PHASES))), value=st.session_state.phase_idx,
-            format_func=lambda i: PHASE_LABELS[PHASES[i]],
+        st.caption(
+            "Play/Pause on the map animate all 4 phases directly in your browser "
+            "(no reloading) — the phase label above the map updates in place."
         )
-        st.session_state.phase_idx = phase_idx
-        phase_name = PHASES[phase_idx]
-
-        play_col, pause_col = st.columns(2)
-        if play_col.button("▶ Play", width='stretch'):
-            st.session_state.playing = True
-        if pause_col.button("⏸ Pause", width='stretch'):
-            st.session_state.playing = False
-
-        if view != "Ground Truth" and phase_name == "pre_event":
-            st.info("Pre-event is never a model target (task 2.7's schema) — always shown as the dry baseline.")
+        if view != "Ground Truth":
+            st.info("Pre-Event is never a model target (task 2.7's schema) — always shown dry for Baseline/GNN too.")
 
         st.markdown("#### Legend")
         st.markdown(
@@ -222,15 +284,9 @@ with tab_map:
         )
 
     with right:
-        st.markdown(f"**{PHASE_LABELS[phase_name]} — {view}**")
-        with st.spinner(f"Rendering {kpis['n_segments']:,} segments..."):
-            map_html = build_flood_map_html(phase_name, column_map[view], view)
-        components.html(map_html, height=600)
-
-    if st.session_state.playing:
-        time.sleep(1.4)
-        st.session_state.phase_idx = (st.session_state.phase_idx + 1) % len(PHASES)
-        st.rerun()
+        st.markdown(f"**{view}** (all 4 phases — use the map's own Play button)")
+        map_html = build_animated_map_html(view, column_map[view])
+        components.html(map_html, height=620)
 
 # --------------------------------------------------------------------------
 # Distress Signals (task 6.3)
