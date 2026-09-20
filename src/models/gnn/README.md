@@ -296,3 +296,12 @@ sanity-check comparison anomalies like this one.
 Outputs (`data/processed/ground_truth/`, gitignored): `gnn_final_model.pt`,
 `gnn_final_model_feature_stats.json`, `gnn_final_per_transition_report.json`
 (F1/accuracy/AUC per transition per split).
+
+**Precision correction (task 5.3, 20 Sep 2026):** the "val AUC ~0.70–0.76
+(genuine discrimination)" language above is imprecise for THIS model —
+it was retrained on train+val *combined* (see the final-retrain step
+above), so its val split isn't a fair holdout, it was fit to those exact
+labels. `src/models/compare_baseline_vs_gnn.py` (task 5.3) checks task
+4.1's original train-only model instead, where val genuinely is unseen,
+and finds a more modest but real signal there (~0.59–0.60) — see
+`src/models/README.md`.
