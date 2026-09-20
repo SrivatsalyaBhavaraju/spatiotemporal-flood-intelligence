@@ -30,7 +30,9 @@ outside these pre-joined files, so it starts fast.
   segments. Directly visualizes task 5.3's finding: at `peak`, ground
   truth and the GNN both show the city mostly flooded (red), while the
   baseline stays entirely dry (blue) — the measured version of
-  working.md §1.6's core claim, not just a number in a table.
+  working.md §1.6's core claim, not just a number in a table. Transitions
+  sweep by real elevation (task 2.3) rather than flipping all changed
+  segments instantly — see "Elevation-staggered sweep" below.
 - **Distress Signals** (task 6.3) — real, pulsing markers for every
   Objective 2 pipeline output (task 4.5) that classified as distress AND
   resolved to a coordinate, with popups showing the actual passage text.
@@ -101,3 +103,22 @@ combinations, not 12) — computing each involves reading 4 phase GeoJSONs
 real seconds the first time a given view is selected. After that,
 switching back to an already-viewed model is instant, and the Play
 animation itself never touches the server at all.
+
+## Elevation-staggered sweep, not a literal flow simulation
+
+Asked directly whether the map could show real water flow. It can't —
+task 5.4 already established the real ground truth has no sub-phase
+timing, velocity, or depth data to animate *from* (only 4 discrete phase
+snapshots per segment). What we do have is real per-segment elevation
+(task 2.3). So a phase transition doesn't flip every changed segment at
+once: newly-flooding segments repaint lowest-elevation-first (water fills
+low ground first) and newly-receding segments repaint
+highest-elevation-first (marginal high ground drains first, low ground
+stays flooded longest), batched into 40 steps over ~800ms. This is a
+disclosed, physically-motivated illustrative choice grounded in real
+elevation data — not a claim that this is the literal, timed path
+floodwater took during the real 2015 event (that data doesn't exist).
+
+Verified this doesn't reintroduce the earlier latency bug: timed 4 full
+Play cycles (16 ticks) via Playwright — interval stayed flat (~1.8s/tick)
+throughout, no escalation, zero console errors.
