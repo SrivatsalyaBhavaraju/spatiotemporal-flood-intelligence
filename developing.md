@@ -579,6 +579,8 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 
 **Next:** 6.4 (polish model outputs and write up results) is the last Phase 6 task.
 
+**Correction (20 Sep 2026)** — merged via PR [#28](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/28), found from real user feedback ("the latency is too much and its kind of glitching... going till peak sometimes and coming back to pre event"), not a style preference. The Play animation's server-driven design was structurally broken: each tick rebuilt the whole map and remounted a `components.html()` iframe (`time.sleep()` + `st.rerun()` in a loop). Timed directly with Playwright, not assumed: tick intervals grew **6s → 13s → 25s → 39s → 52s** over one Play run — consistent with iframes/Leaflet instances accumulating rather than being torn down. Separately, mutating `st.session_state.phase_idx` after its widget had already rendered raised `StreamlitWidgetAlreadyInstantiatedError` outright — the actual, confirmed cause of phases jumping to peak and back to pre-event. Fixed by rebuilding the animation entirely client-side: the map is built once per model view, and Play/Pause now call Leaflet's own `setStyle()` per feature from a JS `setInterval()` — zero server round-trips per frame. Also fixed a `ReferenceError` this surfaced (Folium's own JS variable wasn't always defined yet when the injected script ran) with a readiness poll. Re-verified via Playwright: phase order confirmed correct frame-by-frame across a full cycle, tick timing stays flat (no escalation), Pause holds correctly. 335 passing repo-wide (2 fewer — removed a now-dead-code style-function test).
+
 ---
 
 ## 11. Phase 7 — Objective 3 (OPTIONAL, Week 10)
