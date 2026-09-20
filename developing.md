@@ -423,7 +423,7 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 | 3.5 | Freeze graph structure (no more topology changes after this point) | P1 | 2.3 | ✅ |
 | 3.6 | Build rule-based baseline propagation model | P1 | 3.5 | ✅ |
 | 3.7 | Build training/eval harness skeleton (phase-based train/test split, metrics) | P3 | 2.8 | ✅ |
-| 3.8 | Fine-tune MuRIL/IndicBERT distress classifier on labeled data | P4 | 2.11 | ☐ |
+| 3.8 | Fine-tune MuRIL/IndicBERT distress classifier on labeled data | P4 | 2.11 | ✅ |
 
 **Exit criterion for Phase 3:** 3.4 checked off — this is the mid-project sync point. Phase 4 cannot meaningfully start without fused ground truth.
 
@@ -451,7 +451,11 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 
 **Smoke-tested against task 3.6's real baseline predictions, which surfaced a real limitation worth knowing before trusting this split:** with only 16 wards, val/test each land just ~2 of them, so per-split metrics carry real variance from *which specific wards* get held out, not just model quality. Concretely, on the rising→peak transition alone, the exact same baseline model scores: train accuracy 6.99%, val 53.54%, test 3.54% — a huge swing from ward selection alone. Task 4.2's hyperparameter tuning should account for this (e.g. k-fold across wards) rather than trust a single val split's numbers at face value.
 
-**Next:** Phase 4 (model training, 4.1+) can now start for real — 3.4's fused labels, 2.8's data loader, 3.6's baseline comparison point, and 3.7's train/val/test split are all ready, and 3.5 confirms the graph itself won't shift under them. **All of Phase 3 (3.1–3.7) is done.**
+**3.8 done (20 Sep 2026) — Phase 3 is now fully complete** — merged via PR [#21](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/21) (`src/nlp/finetune_distress_classifier.py`). Fine-tunes MuRIL (working.md §2.3) on task 2.11's real hand-labeled data — 17 binary-labeled passages (2 "uncertain" excluded), not working.md's "a few hundred." **Adaptation strategy confirmed with the user, no spec exists at this sample size:** freeze MuRIL's 237M-param body, train only a linear head on frozen mean-pooled embeddings ("linear probing") — full fine-tuning at n=17 would just memorize the training set.
+
+**Real bug found and fixed, same class as task 4.1's GNN bug:** first LOOCV run was completely degenerate (F1=0.0, recall=0.0, predicting one constant output for every example) — raw MuRIL embeddings have tiny per-dimension scale (std ~0.023), starving the linear head's gradient. Ruled out "the embeddings aren't separable" first (1-NN cosine similarity on the same embeddings got 88% accuracy, so the signal was there). Fixed with per-fold, train-only z-score standardization — **LOOCV F1 went from 0.0 to 0.9412** (precision 0.889, recall 1.0, 1 false positive out of 17 folds). Heavily caveated: with n=17, each fold's error swings the metric ~5.9% — a rough estimate, not production confidence. Verified end-to-end on genuinely new text: correctly classified an unseen first-person distress account (p=0.998) and an unseen institutional announcement (p=0.0002). **Disclosed, inherited limitation:** MuRIL's strength is code-mixed Indian-language text; the real corpus is English news/report register (task 1.13's infeasibility pivot) — proves the pipeline architecture, not that MuRIL is the ideal model for this specific text. `predict_distress()` is the reusable inference entry point task 4.5 now wires in.
+
+**Next:** Phase 4 (model training, 4.1+) can now start for real — 3.4's fused labels, 2.8's data loader, 3.6's baseline comparison point, and 3.7's train/val/test split are all ready, and 3.5 confirms the graph itself won't shift under them. **All of Phase 3 (3.1–3.8) is done.**
 
 **4.1 done (19 Sep 2026) — working.md §1.6's core experiment** — merged via PR [#17](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/17) (`src/models/gnn/train_gnn.py`). Temporal framing confirmed with the user before implementing (no working.md spec exists for this): one `A3TGCN(periods=1)`, shared weights, trained by pooling all 3 transitions' `(X_t, Y_t+1)` pairs — matching task 3.6's baseline and task 2.8's `transition_pairs()` design exactly, for an apples-to-apples comparison against the rule-based baseline.
 
