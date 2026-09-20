@@ -481,10 +481,26 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 | 4.1 | Train GraphSAGE + temporal layer (A3TGCN/MPNN-LSTM) on fused ground truth | P3 | 3.4, 3.7 | ✅ |
 | 4.2 | Hyperparameter tuning | P3 | 4.1 | ✅ |
 | 4.3 | Run baseline model predictions across all phases | P1 | 3.6, 3.4 | ✅ |
-| 4.4 | Iterate/fix ground-truth issues surfaced during training (feedback loop) | P2 | 4.1 | ☐ |
+| 4.4 | Iterate/fix ground-truth issues surfaced during training (feedback loop) | P2 | 4.1 | ✅ |
 | 4.5 | Integrate classifier + gazetteer resolution into one end-to-end Objective 2 pipeline | P4 | 2.10, 3.8 | ☐ |
 
-**4.3 done (20 Sep 2026)** — no new script needed: task 3.6's `src/models/baseline/rule_based_propagation.py` already *is* "run the baseline across all phases" end to end (that's where 3.6's own F1 numbers above came from), so this task is the confirmation that its outputs are current against the real, committed pipeline rather than stale from an earlier run. Re-ran it fresh against the latest `data/processed/model_input` (task 2.7) and `fused_flood_labels.csv` (task 3.4): produced `baseline_predictions.csv` (51,585 rows = all 17,195 segments × all 3 usable transitions, one row per segment per transition) and `baseline_evaluation_report.json`. Numbers reproduce exactly, deterministically, what 3.6's note already reported (pre_event→rising F1=0/accuracy=1.0, rising→peak F1=0/accuracy=0.1254, peak→receding F1=0.9331, overall F1=0.6362) — confirming nothing upstream (3.4's fusion, 3.7's split, 2.7's schema) has drifted since 3.6 was merged. This is now the frozen baseline comparison point task 5.2 reads from.
+**4.3 done (20 Sep 2026)** — no new script needed: task 3.6's `src/models/baseline/rule_based_propagation.py` already *is* "run the baseline across all phases" end to end (that's where 3.6's own F1 numbers above came from), so this task is the confirmation that its outputs are current against the real, committed pipeline rather than stale from an earlier run. Re-ran it fresh against the latest `data/processed/model_input` (task 2.7) and `fused_flood_labels.csv` (task 3.4): produced `baseline_predictions.csv` (51,585 rows = all 17,195 segments × all 3 usable transitions, one row per segment per transition) and `baseline_evaluation_report.json`. Numbers reproduce exactly, deterministically, what 3.6's note already reported (pre_event→rising F1=0/accuracy=1.0, rising→peak F1=0/accuracy=0.1254, peak→receding F1=0.9331, overall F1=0.6362) — confirming nothing upstream (3.4's fusion, 3.7's split, 2.7's schema) has drifted since 3.6 was merged. This is now the frozen baseline comparison point task 5.2 reads from. **Superseded a few hours later by task 4.4 below — see that note for the corrected `peak→receding` numbers.**
+
+**4.4 done (20 Sep 2026) — merged via PR [#20](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/20) (`src/ground_truth/detect_flood_recession.py`).** The ground-truth feedback loop this task exists for: 3.6/4.1's training runs kept surfacing that `peak→receding` scored suspiciously well (baseline F1=0.933) — traced to task 3.4's own design giving `peak` and `receding` **identical** flood labels, since none of the 3 ground-truth sources are individually phase-resolved. That made the transition a copy-the-input exercise, not a real propagation test.
+
+**Fixed with real, previously-unused data, not a synthetic patch or a threshold tweak:** working.md §1.5 already confirmed a **4th Sentinel-1 pass on 18 Dec 2015** reachable in GEE (12 days after the 6 Dec peak pass) that nothing had used yet. Ran the *exact same* change-detection method as task 3.1 (same `CHANGE_STD_MULTIPLIER`, speckle filter, JRC water mask — imported, not reimplemented) against 24 Nov→18 Dec. A segment with a SAR flood signature at peak but not at 18 Dec has genuinely receded. **Real result: 422 of 932 SAR-flagged peak segments (45.28%) recovered.** `fuse_flood_labels.py` now demotes those to `flood_label=0` in receding only (peak untouched): receding dropped from an exact-copy 87.46% to **85.00%** flooded.
+
+**Disclosed scope limit:** this recession signal only exists for SAR-covered segments (5.4% of the 87.46% "ever flooded" set) — Bhuvan/news are single static snapshots with no time axis, so segments flagged only by those sources are deliberately left unchanged rather than guessed at. A real, partial, proportional fix, not a complete one.
+
+**Re-ran the full downstream chain against the corrected ground truth** (not just this script) to check what actually changed:
+
+| `peak→receding` | Before (identical labels) | After (task 4.4 fix) |
+|---|---|---|
+| Baseline (3.6/4.3) F1 | 0.933 | 0.919 |
+| GNN untuned (4.1) test F1 | 0.93 | 0.928 |
+| GNN tuned (4.2) test F1 | 0.982 | **0.973** |
+
+`peak→receding` now scores visibly lower than `rising→peak` (still 0.982) instead of the two being suspiciously tied — a more defensible, presentable result, and the actual reason this was worth fixing rather than just documenting. `pre_event→rising` and `rising→peak` numbers are unaffected (recession-check only touches the receding phase). 16 new tests (8 for `detect_flood_recession.py`'s logic, 8 for `fuse_flood_labels.py`'s demotion behavior); 259 passing repo-wide, no regressions.
 
 ---
 
