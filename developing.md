@@ -480,9 +480,11 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 |---|---|---|---|---|
 | 4.1 | Train GraphSAGE + temporal layer (A3TGCN/MPNN-LSTM) on fused ground truth | P3 | 3.4, 3.7 | ✅ |
 | 4.2 | Hyperparameter tuning | P3 | 4.1 | ✅ |
-| 4.3 | Run baseline model predictions across all phases | P1 | 3.6, 3.4 | ☐ |
+| 4.3 | Run baseline model predictions across all phases | P1 | 3.6, 3.4 | ✅ |
 | 4.4 | Iterate/fix ground-truth issues surfaced during training (feedback loop) | P2 | 4.1 | ☐ |
 | 4.5 | Integrate classifier + gazetteer resolution into one end-to-end Objective 2 pipeline | P4 | 2.10, 3.8 | ☐ |
+
+**4.3 done (20 Sep 2026)** — no new script needed: task 3.6's `src/models/baseline/rule_based_propagation.py` already *is* "run the baseline across all phases" end to end (that's where 3.6's own F1 numbers above came from), so this task is the confirmation that its outputs are current against the real, committed pipeline rather than stale from an earlier run. Re-ran it fresh against the latest `data/processed/model_input` (task 2.7) and `fused_flood_labels.csv` (task 3.4): produced `baseline_predictions.csv` (51,585 rows = all 17,195 segments × all 3 usable transitions, one row per segment per transition) and `baseline_evaluation_report.json`. Numbers reproduce exactly, deterministically, what 3.6's note already reported (pre_event→rising F1=0/accuracy=1.0, rising→peak F1=0/accuracy=0.1254, peak→receding F1=0.9331, overall F1=0.6362) — confirming nothing upstream (3.4's fusion, 3.7's split, 2.7's schema) has drifted since 3.6 was merged. This is now the frozen baseline comparison point task 5.2 reads from.
 
 ---
 
