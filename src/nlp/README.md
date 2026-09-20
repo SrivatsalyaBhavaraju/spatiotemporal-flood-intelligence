@@ -287,3 +287,44 @@ specific text.
 Outputs (`data/processed/nlp/`, gitignored): `distress_classifier_head.pt`
 (head weights + standardization stats), `distress_classifier_metadata.json`,
 `distress_classifier_loocv_report.json`.
+
+## `run_objective2_pipeline.py` — task 4.5
+
+Composes task 3.8's classifier and task 2.10's geoparser into working.md
+§2.4's full Objective 2 pipeline, exactly as diagrammed: both branches run
+independently on every post (classification isn't gated on geoparsing or
+vice versa), then merge into the final deliverable — distress posts that
+also resolved to a coordinate.
+
+```bash
+python src/nlp/run_objective2_pipeline.py
+```
+
+**What "validation" means here, disclosed up front:** task 3.8 already
+measured the classifier's own accuracy (LOOCV) and task 2.10 already
+measured the geoparser's own recall — re-measuring either here would be
+circular. What this task actually needs to prove is that the two **compose
+correctly**, checked two ways: (1) an integration smoke test against task
+1.13's real corpus (the classifier's own training data — plumbing check
+only, not a fresh accuracy number), and (2) a generalization check against
+4 genuinely new, hand-written posts covering all 4 combinations of
+distress-label × has-a-resolvable-place.
+
+**Real result (20 Sep 2026):** the generalization check landed exactly on
+all 4 combinations, correctly: a real-sounding distress post ("Families in
+Velachery were trapped on their rooftops...") → distress (p=0.998),
+resolved to Velachery; a distress post with no place name ("We are
+stranded...") → distress (p=0.876), correctly resolved to **no**
+location — a real, disclosed gap (an unlocatable distress signal can't
+feed the graph/optimizer), not silently hidden; an institutional
+announcement mentioning two real places ("Chennai Corporation announced
+routine repair work on Gandhi Road...") → not_distress (p=0.007), but
+still geoparsed to both places — proving the two branches genuinely run
+independently, not gated on each other; and a generic institutional
+statement → not_distress, no locations. On the 1.13 corpus smoke test,
+10/19 real passages classified distress, and **100% of those resolved to
+a location** (expected — task 1.13's own corpus was already filtered to
+location-mentioning passages).
+
+Outputs (`data/processed/nlp/`, gitignored): `objective2_pipeline_output.csv`,
+`objective2_pipeline_validation_report.json`.
