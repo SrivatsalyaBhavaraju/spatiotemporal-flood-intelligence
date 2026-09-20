@@ -28,6 +28,7 @@ from src.ground_truth.fuse_flood_labels import (  # noqa: E402
     flag_segments_intersecting,
     fuse_labels,
     load_news_flagged_segments,
+    load_recovered_segments,
     validate_fusion,
 )
 
@@ -134,6 +135,77 @@ class TestFuseLabels:
 
     def test_flooded_phase_names_are_peak_and_receding(self):
         assert FLOODED_PHASE_NAMES == {"peak", "receding"}
+
+
+class TestLoadRecoveredSegments:
+    def test_missing_file_returns_empty_set(self, tmp_path):
+        assert load_recovered_segments(tmp_path / "nope.json") == set()
+
+    def test_reads_segment_ids(self, tmp_path):
+        p = tmp_path / "recovered.json"
+        p.write_text('["s1", "s3"]', encoding="utf-8")
+        assert load_recovered_segments(p) == {"s1", "s3"}
+
+
+class TestFuseLabelsRecovery:
+    """Task 4.4 -- recovered_segments demotes flood_label to 0 in receding
+    only, never in peak, and never for segments not marked recovered."""
+
+    def test_recovered_segment_demoted_only_in_receding(self):
+        labels = fuse_labels(
+            NODE_ORDER, sar_segments={"s1"}, bhuvan_segments=set(), news_segments=set(), phases=PHASES,
+            recovered_segments={"s1"},
+        )
+        s1_peak = labels[(labels["segment_id"] == "s1") & (labels["phase_name"] == "peak")].iloc[0]
+        s1_receding = labels[(labels["segment_id"] == "s1") & (labels["phase_name"] == "receding")].iloc[0]
+        assert s1_peak["flood_label"] == 1        # peak untouched
+        assert s1_receding["flood_label"] == 0    # receding demoted
+        assert s1_receding["recovered_by_18dec"] == 1
+
+    def test_non_recovered_segment_unaffected(self):
+        labels = fuse_labels(
+            NODE_ORDER, sar_segments={"s1", "s2"}, bhuvan_segments=set(), news_segments=set(), phases=PHASES,
+            recovered_segments={"s1"},
+        )
+        s2_receding = labels[(labels["segment_id"] == "s2") & (labels["phase_name"] == "receding")].iloc[0]
+        assert s2_receding["flood_label"] == 1
+        assert s2_receding["recovered_by_18dec"] == 0
+
+    def test_recovery_only_applies_to_segments_actually_flooded(self):
+        # s4 was never flagged flooded at all -- marking it "recovered" (a
+        # nonsensical input, but the function shouldn't newly flag it)
+        labels = fuse_labels(
+            NODE_ORDER, sar_segments={"s1"}, bhuvan_segments=set(), news_segments=set(), phases=PHASES,
+            recovered_segments={"s4"},
+        )
+        s4_receding = labels[(labels["segment_id"] == "s4") & (labels["phase_name"] == "receding")].iloc[0]
+        assert s4_receding["flood_label"] == 0
+
+    def test_default_empty_recovered_matches_original_behavior(self):
+        with_default = fuse_labels(NODE_ORDER, sar_segments={"s1"}, bhuvan_segments=set(), news_segments=set(), phases=PHASES)
+        with_empty = fuse_labels(
+            NODE_ORDER, sar_segments={"s1"}, bhuvan_segments=set(), news_segments=set(), phases=PHASES,
+            recovered_segments=set(),
+        )
+        pd.testing.assert_frame_equal(with_default.drop(columns=["recovered_by_18dec"]),
+                                       with_empty.drop(columns=["recovered_by_18dec"]))
+
+
+class TestValidateFusionRecovery:
+    def test_reports_demoted_count(self):
+        labels = fuse_labels(
+            NODE_ORDER, sar_segments={"s1", "s2"}, bhuvan_segments=set(), news_segments=set(), phases=PHASES,
+            recovered_segments={"s1"},
+        )
+        report = validate_fusion(labels, NODE_ORDER, PHASES)
+        assert report["task_4_4_recovered_by_18dec"]["segments_demoted_in_receding"] == 1
+        assert report["task_4_4_recovered_by_18dec"]["peak_receding_now_identical"] is False
+
+    def test_no_recovery_reports_identical(self):
+        labels = fuse_labels(NODE_ORDER, sar_segments={"s1"}, bhuvan_segments=set(), news_segments=set(), phases=PHASES)
+        report = validate_fusion(labels, NODE_ORDER, PHASES)
+        assert report["task_4_4_recovered_by_18dec"]["segments_demoted_in_receding"] == 0
+        assert report["task_4_4_recovered_by_18dec"]["peak_receding_now_identical"] is True
 
 
 class TestValidateFusion:

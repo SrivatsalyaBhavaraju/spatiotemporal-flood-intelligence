@@ -349,3 +349,53 @@ that "Phase 4 cannot meaningfully start without fused ground truth"
 Outputs (`data/processed/ground_truth/`, gitignored): `fused_flood_labels.csv`
 (68,780 rows = 17,195 segments × 4 phases) and the validation report.
 
+**Task 4.4 update (20 Sep 2026):** see `detect_flood_recession.py` below —
+`fuse_labels()` now accepts a `recovered_segments` set and demotes those
+segments to `flood_label=0` in **receding only** (peak is untouched). With
+it, peak is 87.46% flooded and receding is **85.00%** — no longer an exact
+copy. `recovered_by_18dec=frozenset()` by default, so this script still
+works standalone (mirrors peak/receding exactly) if task 4.4 hasn't been
+run yet.
+
+## `detect_flood_recession.py` — task 4.4
+
+**Ground-truth feedback loop, triggered by a real result from training/
+baseline evaluation.** Task 3.6's baseline and task 4.1's GNN both scored
+suspiciously well on `peak→receding` (baseline F1=0.933) — traced to
+`fuse_flood_labels.py` assigning **identical** labels to peak and receding
+(no phase-resolved ground truth exists, so task 3.4's original design
+copied `ever_flooded` to both). That makes `peak→receding` a copy-the-input
+exercise, not a real propagation test — flagged in developing.md's 3.6/4.1
+notes as something worth revisiting.
+
+**The fix uses real, previously-unused data, not a synthetic patch:**
+working.md §1.5 already confirmed a **4th Sentinel-1 pass on 18 Dec 2015**
+reachable in GEE (`S1A_IW_GRDH_1SDV_20151218T003119_..._009089_00D0E6_767A`)
+— 12 days after the 6 Dec peak pass, never used until now. This script runs
+the *exact same* change-detection method as task 3.1 (same
+`CHANGE_STD_MULTIPLIER`, same speckle filter, same JRC permanent-water
+mask — imported directly from `run_sentinel1_change_detection.py`, not
+reimplemented) against the 24 Nov → 18 Dec pair. A segment with a flood
+signature at 6 Dec that no longer shows one at 18 Dec has genuinely
+receded, per real SAR evidence.
+
+```bash
+python src/ground_truth/detect_flood_recession.py
+```
+
+**Real result (20 Sep 2026):** of the 932 segments SAR flagged at peak,
+**422 (45.28%) show recovery by 18 Dec.** Written to
+`recovered_segments.json`, consumed by `fuse_flood_labels.py`'s next run.
+
+**Disclosed scope limit, not hidden:** this recession signal only exists
+for SAR-covered segments — 5.4% of the 87.46% "ever flooded" set. Most of
+that set comes from Bhuvan/news, which are single static snapshots with no
+time axis at all, so segments flagged *only* by those sources have no data
+to check recession against and are deliberately left unchanged (a
+conservative default, not a guess). This is a real, partial fix
+proportional to SAR's own coverage, not a complete one — stated as such.
+
+Outputs (`data/processed/ground_truth/`, gitignored):
+`sentinel1_recession_check_vv_db.tif`, `sentinel1_recession_check_extent.geojson`,
+`recovered_segments.json`, `flood_recession_validation_report.json`.
+
