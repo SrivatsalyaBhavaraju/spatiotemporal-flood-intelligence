@@ -28,10 +28,25 @@ Fusion rule per segment (working.md SS1.5's own rule, "segment labeled
 flooded if it intersects the polygon," extended across all three sources
 with a simple OR -- not invented fresh here):
     ever_flooded = intersects(3.1 polygon) OR intersects(3.2 polygon) OR flagged-by(3.3)
-    flood_label[pre_event] = 0                    (always)
-    flood_label[rising]    = 0                    (always -- see phase-assignment note)
+    flood_label[pre_event] = 0                                          (always)
+    flood_label[rising]    = 0                                          (always -- see phase-assignment note)
     flood_label[peak]      = 1 if ever_flooded else 0
-    flood_label[receding]  = 1 if ever_flooded else 0
+    flood_label[receding]  = 1 if ever_flooded and not recovered_by_18dec else 0
+
+**Task 4.4 update (20 Sep 2026):** `flood_label[receding]` originally
+mirrored `flood_label[peak]` exactly, since none of the 3 sources are
+individually phase-resolved. Training (task 3.6/4.1) surfaced that this
+makes peak->receding a copy-the-input exercise rather than a real
+propagation test. `recovered_by_18dec` (task 4.4,
+`src/ground_truth/detect_flood_recession.py`) uses a 4th, previously-unused
+Sentinel-1 pass (18 Dec 2015, confirmed reachable since task 1.9) to find
+segments that showed a SAR flood signature at peak but no longer do 12 days
+later -- those get demoted to 0 in receding while staying 1 in peak. This
+only ever demotes segments SAR itself flagged (5.4% of the flooded set,
+task 3.4's original note) -- segments flagged only by Bhuvan/news have no
+time axis to check recession against and are deliberately left unchanged
+(conservative default, not guessed at). `recovered_by_18dec=frozenset()` by
+default, so this module still works standalone if task 4.4 hasn't been run.
 
 Usage:
     python src/ground_truth/fuse_flood_labels.py
@@ -43,11 +58,13 @@ Required inputs:
     data/processed/ground_truth/sentinel1_flood_extent.geojson   (task 3.1)
     data/processed/ground_truth/bhuvan_nrsc_flood_extent.geojson (task 3.2)
     data/processed/ground_truth/news_cross_check_segments.geojson (task 3.3)
+    data/processed/ground_truth/recovered_segments.json (task 4.4, optional)
 
 Outputs (data/processed/ground_truth/):
     fused_flood_labels.csv             -- segment_id, phase_id, phase_name,
                                            flood_label, sar_flagged,
-                                           bhuvan_flagged, news_flagged
+                                           bhuvan_flagged, news_flagged,
+                                           recovered_by_18dec
     fused_flood_labels_validation_report.json
 """
 import json
@@ -72,6 +89,7 @@ GROUND_TRUTH_DIR = REPO_ROOT / "data" / "processed" / "ground_truth"
 SENTINEL1_PATH = GROUND_TRUTH_DIR / "sentinel1_flood_extent.geojson"
 BHUVAN_PATH = GROUND_TRUTH_DIR / "bhuvan_nrsc_flood_extent.geojson"
 NEWS_SEGMENTS_PATH = GROUND_TRUTH_DIR / "news_cross_check_segments.geojson"
+RECOVERED_SEGMENTS_PATH = GROUND_TRUTH_DIR / "recovered_segments.json"  # task 4.4, optional
 
 OUT_CSV = GROUND_TRUTH_DIR / "fused_flood_labels.csv"
 REPORT_PATH = GROUND_TRUTH_DIR / "fused_flood_labels_validation_report.json"
@@ -147,25 +165,47 @@ def load_news_flagged_segments(path: Path = NEWS_SEGMENTS_PATH) -> set:
     return set(gdf["segment_id"])
 
 
+def load_recovered_segments(path: Path = RECOVERED_SEGMENTS_PATH) -> set:
+    """Task 4.4's output (see module docstring) -- segment_ids SAR-confirmed
+    to have receded by 18 Dec. Missing file -> empty set (not an error):
+    this module must still work standalone if task 4.4 hasn't been run,
+    falling back to the original peak==receding behavior."""
+    if not path.exists():
+        return set()
+    return set(json.loads(path.read_text(encoding="utf-8")))
+
+
 # --------------------------------------------------------------------------
 # Fusion (pure logic -- unit-tested)
 # --------------------------------------------------------------------------
 
-def fuse_labels(node_order: list, sar_segments: set, bhuvan_segments: set, news_segments: set, phases: list) -> pd.DataFrame:
+def fuse_labels(
+    node_order: list, sar_segments: set, bhuvan_segments: set, news_segments: set, phases: list,
+    recovered_segments: set = frozenset(),
+) -> pd.DataFrame:
     """One row per (segment_id, phase): flood_label per the module
     docstring's fusion rule, plus which source(s) flagged this segment
-    (for audit -- see validate_fusion())."""
+    (for audit -- see validate_fusion()).
+
+    `recovered_segments` (task 4.4): segments SAR-confirmed to have receded
+    by 18 Dec -- demoted to flood_label=0 in the RECEDING phase only (peak
+    is untouched, since it's still anchored to the real 6 Dec evidence).
+    Empty by default -- see module docstring's fallback note.
+    """
     ever_flooded = sar_segments | bhuvan_segments | news_segments
     rows = []
     for phase in phases:
         flooded_phase = phase["phase_name"] in FLOODED_PHASE_NAMES
+        is_receding = phase["phase_name"] == "receding"
         for seg_id in node_order:
             in_sar, in_bhuvan, in_news = seg_id in sar_segments, seg_id in bhuvan_segments, seg_id in news_segments
+            recovered = is_receding and seg_id in recovered_segments
             rows.append({
                 "segment_id": seg_id, "phase_id": phase["phase_id"], "phase_name": phase["phase_name"],
-                "flood_label": int(flooded_phase and seg_id in ever_flooded),
+                "flood_label": int(flooded_phase and seg_id in ever_flooded and not recovered),
                 "sar_flagged": int(in_sar), "bhuvan_flagged": int(in_bhuvan), "news_flagged": int(in_news),
                 "n_sources_agreeing": int(in_sar) + int(in_bhuvan) + int(in_news),
+                "recovered_by_18dec": int(recovered),
             })
     return pd.DataFrame(rows)
 
@@ -189,6 +229,13 @@ def validate_fusion(labels_df: pd.DataFrame, node_order: list, phases: list) -> 
         phase: {"flooded": int(v["sum"]), "total": int(v["count"]), "pct": round(100 * v["sum"] / v["count"], 2)}
         for phase, v in per_phase.items()
     }
+
+    receding_rows = labels_df[labels_df["phase_name"] == "receding"]
+    if len(receding_rows) > 0:
+        report["task_4_4_recovered_by_18dec"] = {
+            "segments_demoted_in_receding": int(receding_rows["recovered_by_18dec"].sum()),
+            "peak_receding_now_identical": bool(receding_rows["recovered_by_18dec"].sum() == 0),
+        }
 
     one_phase = labels_df[labels_df["phase_id"] == labels_df["phase_id"].max()]
     source_counts = one_phase[["sar_flagged", "bhuvan_flagged", "news_flagged"]].sum().to_dict()
@@ -254,8 +301,13 @@ def main():
     news_segments = load_news_flagged_segments(NEWS_SEGMENTS_PATH)
     print(f"  -> {len(news_segments)} segments")
 
+    print(f"Loading task 4.4 recovered-by-18dec segments <- {RECOVERED_SEGMENTS_PATH}")
+    recovered_segments = load_recovered_segments(RECOVERED_SEGMENTS_PATH)
+    print(f"  -> {len(recovered_segments)} segments"
+          f"{' (task 4.4 not run yet -- receding will mirror peak)' if not recovered_segments else ''}")
+
     print(f"\nFusing into 4-phase labels (flooded phases: {sorted(FLOODED_PHASE_NAMES)}) ...")
-    labels_df = fuse_labels(node_order, sar_segments, bhuvan_segments, news_segments, phases)
+    labels_df = fuse_labels(node_order, sar_segments, bhuvan_segments, news_segments, phases, recovered_segments)
     print(f"  -> {len(labels_df)} rows ({len(node_order)} segments x {len(phases)} phases)")
 
     print("\nSaving outputs ...")
