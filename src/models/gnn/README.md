@@ -258,3 +258,41 @@ transition threshold if this model line is developed further.
 Outputs (`data/processed/ground_truth/`, gitignored):
 `hyperparameter_tuning_report.json` (full CV grid, threshold sweep,
 selected hyperparameters, final tuned test evaluation).
+
+## `evaluate_final_model.py` — task 5.1
+
+Reproduces task 4.2's final tuned model exactly (`train_model()` is fully
+deterministic given the same train_mask/lr/seed — confirmed below, not
+assumed) and evaluates it on **all three splits** (train/val/test), not
+just the test-only number 4.2 itself needed for hyperparameter selection.
+
+```bash
+python src/models/gnn/evaluate_final_model.py
+```
+
+**Reproducibility, checked not assumed:** this script's own test-split F1/
+accuracy/precision/recall are compared byte-for-byte against task 4.2's
+saved `final_test_evaluation` and it raises if they don't match exactly —
+concrete proof `train_model()` is deterministic here, not a hopeful claim.
+
+**A real, important finding, not hidden:** F1 alone at one tuned threshold
+can look excellent purely from matching a transition's base rate — and
+that's exactly what a first real run of this script surfaced. Direct
+inspection: the final model predicts "flooded" for **100% of test
+segments on every transition**, with zero exceptions. Added AUC-ROC
+(threshold-independent, hand-rolled — same no-new-dependency convention
+as task 3.6's `binary_classification_metrics()`) to check for exactly
+this. Real result: **AUC ~0.70–0.76 on train/val (genuine discrimination)
+but collapses to ~0.46–0.50 on test** (statistically indistinguishable
+from random) for both flood-relevant transitions. The model has learned
+real signal — it transfers to train and val — it just doesn't transfer to
+whichever 2–3 wards happen to be in the test split. This sharpens task
+3.7/4.2's already-disclosed small-N-of-wards variance into something
+concrete: the reported F1=0.982/0.973 test wins are correct arithmetic,
+not evidence of learned per-segment discrimination on held-out wards.
+**Deliberately not fixed here** — task 5.4 exists specifically to
+sanity-check comparison anomalies like this one.
+
+Outputs (`data/processed/ground_truth/`, gitignored): `gnn_final_model.pt`,
+`gnn_final_model_feature_stats.json`, `gnn_final_per_transition_report.json`
+(F1/accuracy/AUC per transition per split).
