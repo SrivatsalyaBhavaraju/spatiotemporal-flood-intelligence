@@ -2,15 +2,23 @@
 Task 6.1/6.2/6.3 -- Streamlit + Folium integration dashboard. This is
 where Objective 1 (flood propagation, baseline vs. GNN) and Objective 2
 (distress classification + geoparsing) visibly become one system. Task 7.3
-adds the Resource Allocation tab: Objective 3's equity-constrained
-optimizer, re-solved live (task 7.2's own MIP) as the rho/budget sliders move.
+adds the Fair Relief tab: Objective 3's equity-constrained optimizer,
+re-solved live (task 7.2's own MIP) as the rho/budget sliders move.
+
+Presentation redesign (task 8.3 prep): the app is organised as a story an
+audience can follow -- every tab opens with the question it answers and the
+answer in one sentence, the Overview shows how the three objectives connect,
+and technical metrics sit one click deeper instead of leading. Every number
+is still read from the tasks' own generated reports; nothing is invented.
 
 Run with:
     streamlit run src/dashboard/app.py
 
 All data is real -- pre-joined by prepare_dashboard_data.py or read
-directly from tasks 3.4/4.3/5.1/5.3/5.4/5.5's own generated reports.
-Nothing here recomputes a model or invents a number.
+directly from tasks 3.4/4.3/5.1/5.3/5.4/5.5/7.1-7.3's own generated reports.
+Nothing here recomputes a model or invents a number (the Fair Relief
+sliders re-run task 7.2's own optimizer; the live geoparser box runs task
+2.10's own geoparser).
 """
 import json
 import sys
@@ -20,7 +28,6 @@ import folium
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-import streamlit.components.v1 as components
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
@@ -43,6 +50,7 @@ from src.dashboard.data_loader import (  # noqa: E402
     load_phase_layer,
     load_wards,
 )
+from src.features.build_rainfall_phase_features import PHASES as PHASE_WINDOWS  # noqa: E402 -- task 2.5's real windows
 from src.optimizer.equity_optimizer import evaluate_allocation, solve_allocation  # noqa: E402
 
 CHENNAI_CENTER = [12.985, 80.225]
@@ -52,20 +60,77 @@ CHENNAI_CENTER = [12.985, 80.225]
 DARK_TILES_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
 DARK_TILES_ATTR = "Esri, HERE, Garmin, FAO, NOAA, USGS, © OpenStreetMap contributors, GIS User Community"
 
+MAP_ATTR_SHORT = "© Esri · © OpenStreetMap contributors"
+TRANSITION_LABELS = {"pre_event->rising": "Pre-event → Rising", "rising->peak": "Rising → Peak (flood onset)",
+                     "peak->receding": "Peak → Receding"}
+SPLIT_LABELS = {"train": "Training wards", "val": "Validation wards (unseen)", "test": "Test wards (unseen)"}
+
+
+def _phase_date_label(phase_name: str) -> str:
+    w = next(p for p in PHASE_WINDOWS if p["phase_name"] == phase_name)
+    start, end = pd.Timestamp(w["start"]), pd.Timestamp(w["end"])
+    return f"{start:%d %b} – {end:%d %b %Y}"
+
+
 st.set_page_config(page_title="Chennai Flood Intelligence", page_icon="\U0001F30A", layout="wide")
 
 CUSTOM_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 html, body, [class*="css"] { font-family: 'Inter', system-ui, sans-serif; }
+.block-container { padding-top: 2.2rem; max-width: 1500px; }
 
 .hero-title {
-    font-size: 2.6rem; font-weight: 800; letter-spacing: -0.02em;
+    font-size: 3rem; font-weight: 800; letter-spacing: -0.025em; line-height: 1.1;
     background: linear-gradient(90deg, #eb6834 0%, #eda100 50%, #e34948 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     margin-bottom: 0;
 }
-.hero-subtitle { color: #c3c2b7; font-size: 1.05rem; margin-top: 0.2rem; margin-bottom: 1.5rem; }
+.hero-subtitle { color: #d6d4cb; font-size: 1.15rem; line-height: 1.55; margin: 0.5rem 0 1.4rem 0; max-width: 1100px; }
+.hero-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+.chip { background: #1f1f1d; border: 1px solid rgba(255,255,255,0.10); color: #d6d4cb; border-radius: 999px;
+        padding: 0.28rem 0.8rem; font-size: 0.82rem; font-weight: 500; }
+
+.stTabs [data-baseweb="tab-list"] { gap: 0.4rem; }
+.stTabs [data-baseweb="tab"] { font-size: 1.02rem; font-weight: 600; padding: 0.55rem 0.9rem; }
+
+.story {
+    background: linear-gradient(135deg, #24150e 0%, #181817 55%);
+    border: 1px solid rgba(235,104,52,0.28); border-radius: 16px;
+    padding: 1.25rem 1.6rem; margin: 0.6rem 0 1.3rem 0;
+}
+.story .q { color: #eb6834; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+.story .a { color: #ffffff; font-size: 1.5rem; font-weight: 700; line-height: 1.35; margin-top: 0.35rem; }
+.story .sub { color: #c3c2b7; font-size: 1rem; line-height: 1.55; margin-top: 0.5rem; }
+
+.section-title { font-size: 1.25rem; font-weight: 700; color: #ffffff; margin: 1.4rem 0 0.6rem 0; }
+.section-title span { color: #898781; font-weight: 500; font-size: 0.95rem; margin-left: 0.4rem; }
+
+.pipeline { display: flex; gap: 0.7rem; align-items: stretch; margin: 0.4rem 0 0.6rem 0; }
+.stage { flex: 1; background: #1a1a19; border-radius: 14px; padding: 1.1rem 1.25rem;
+         border: 1px solid rgba(255,255,255,0.07); border-top: 4px solid var(--c); }
+.stage .step { display: inline-block; background: var(--c); color: #0d0d0d; font-weight: 800; border-radius: 999px;
+               width: 1.7rem; height: 1.7rem; text-align: center; line-height: 1.7rem; font-size: 0.9rem; }
+.stage .kicker { color: var(--c); font-weight: 700; font-size: 0.78rem; letter-spacing: 0.09em; text-transform: uppercase;
+                 margin-left: 0.45rem; }
+.stage h3 { color: #ffffff; font-size: 1.15rem; margin: 0.6rem 0 0.35rem 0; font-weight: 700; }
+.stage p { color: #c3c2b7; font-size: 0.92rem; line-height: 1.5; margin: 0; }
+.stage .out { margin-top: 0.75rem; padding-top: 0.65rem; border-top: 1px dashed rgba(255,255,255,0.12);
+              color: #ffffff; font-size: 0.88rem; }
+.stage .out b { color: var(--c); }
+.arrow { align-self: center; color: #8a8983; font-size: 2.4rem; font-weight: 400; }
+
+.finding { background: #1a1a19; border-radius: 14px; padding: 1.2rem 1.35rem; height: 100%;
+           border: 1px solid rgba(255,255,255,0.07); }
+.finding .big { font-size: 2.7rem; font-weight: 800; line-height: 1.05; color: var(--c); }
+.finding .what { color: #ffffff; font-weight: 700; font-size: 1.02rem; margin-top: 0.45rem; }
+.finding .why { color: #c3c2b7; font-size: 0.9rem; line-height: 1.5; margin-top: 0.35rem; }
+.finding .tag { color: #898781; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.navgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; margin: 0.4rem 0 1.4rem 0; }
+.navcard { background: #151514; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 0.8rem 0.9rem; }
+.navcard .t { color: #ffffff; font-weight: 700; font-size: 0.95rem; }
+.navcard .d { color: #a9a79e; font-size: 0.83rem; line-height: 1.45; margin-top: 0.25rem; }
 
 .kpi-card {
     background: linear-gradient(145deg, #1a1a19 0%, #232320 100%);
@@ -91,25 +156,83 @@ html, body, [class*="css"] { font-family: 'Inter', system-ui, sans-serif; }
 .insight-card.warning { border-left-color: #fab219; }
 .insight-card.good { border-left-color: #0ca30c; }
 .insight-card h4 { margin: 0 0 0.35rem 0; color: #ffffff; }
-.insight-card p { margin: 0; color: #c3c2b7; font-size: 0.92rem; line-height: 1.5; }
+.insight-card p { margin: 0; color: #c3c2b7; font-size: 0.95rem; line-height: 1.55; }
 
+.steps { display: flex; gap: 0.5rem; align-items: stretch; margin: 0.2rem 0 1rem 0; }
+.stepbox { flex: 1; background: #1a1a19; border-radius: 12px; padding: 0.85rem 1rem; border: 1px solid rgba(255,255,255,0.07); }
+.stepbox .n { color: #eb6834; font-weight: 800; font-size: 0.8rem; letter-spacing: 0.08em; }
+.stepbox .t { color: #ffffff; font-weight: 700; margin-top: 0.15rem; }
+.stepbox .d { color: #a9a79e; font-size: 0.85rem; line-height: 1.45; margin-top: 0.2rem; }
+.steps .arrow { font-size: 1.4rem; }
+
+.phase-row { display: flex; gap: 0.4rem; margin: 0.4rem 0 0.8rem 0; }
+.phase { flex: 1; background: #171716; border-radius: 10px; padding: 0.55rem 0.7rem; border: 1px solid rgba(255,255,255,0.07); }
+.phase .p { color: #ffffff; font-weight: 700; font-size: 0.9rem; }
+.phase .dt { color: #898781; font-size: 0.76rem; }
+.phase.hot { border-color: rgba(208,59,59,0.7); background: #221413; }
+
+.watch { background: #171716; border-radius: 12px; padding: 0.9rem 1rem; border: 1px solid rgba(255,255,255,0.07); }
+.watch li { color: #c3c2b7; font-size: 0.92rem; line-height: 1.55; margin-bottom: 0.3rem; }
+.watch b { color: #ffffff; }
+
+.match-chip { display: inline-block; background: #22301f; border: 1px solid #0ca30c; color: #d9f2d9; border-radius: 999px;
+              padding: 0.2rem 0.75rem; margin: 0.15rem 0.3rem 0.15rem 0; font-size: 0.88rem; }
 .legend-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; }
+.footer { color: #6f6e68; font-size: 0.8rem; margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06); }
 </style>
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-st.markdown('<div class="hero-title">Chennai 2015 Flood Intelligence</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="hero-subtitle">Spatiotemporal graph learning vs. a rule-based baseline, '
-    'plus a distress-classification + geoparsing pipeline — one integrated system.</div>',
-    unsafe_allow_html=True,
-)
+
+def story(question: str, answer: str, sub: str = "") -> None:
+    """Every tab opens with the question it answers and the answer in one sentence."""
+    st.markdown(
+        f'<div class="story"><div class="q">{question}</div><div class="a">{answer}</div>'
+        + (f'<div class="sub">{sub}</div>' if sub else "") + "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def section(title: str, hint: str = "") -> None:
+    st.markdown(f'<div class="section-title">{title}' + (f"<span>{hint}</span>" if hint else "") + "</div>",
+                unsafe_allow_html=True)
+
+
+def kpi_row(tiles) -> None:
+    for col, label, value, caption, accent in tiles:
+        with col:
+            st.markdown(
+                f'<div class="kpi-card"><div class="kpi-label">{label}</div>'
+                f'<div class="kpi-value kpi-accent-{accent}">{value}</div>'
+                f'<div class="kpi-caption">{caption}</div></div>',
+                unsafe_allow_html=True,
+            )
+
 
 try:
     kpis = compute_overview_kpis()
 except FileNotFoundError as e:
     st.error(f"Dashboard data not ready: {e}\n\nRun `python src/dashboard/prepare_dashboard_data.py` first.")
     st.stop()
+
+try:
+    OPT = load_optimizer_outputs()
+except FileNotFoundError:
+    OPT = None  # Objective 3 not generated -- the Fair Relief tab explains how to build it
+
+st.markdown('<div class="hero-title">Chennai 2015 Flood Intelligence</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="hero-subtitle">A digital twin of the December 2015 Chennai flood that <b>predicts</b> where water '
+    'spreads across the road network, <b>listens</b> for people asking for help, and <b>decides</b> where relief '
+    'should go — so the most vulnerable wards are not left behind just because they are the quietest.</div>',
+    unsafe_allow_html=True,
+)
+chips = [f"{kpis['n_wards']} wards", f"{kpis['n_segments']:,} road segments", "4 flood phases · 8 Nov – 14 Dec 2015",
+         "Sentinel-1 SAR + Bhuvan + news ground truth"]
+if OPT is not None:
+    chips.insert(1, f"{OPT['vulnerability_report']['census_population_total_study_area']:,} residents (Census 2011)")
+st.markdown('<div class="hero-chips">' + "".join(f'<span class="chip">{c}</span>' for c in chips) + "</div>",
+            unsafe_allow_html=True)
 
 
 VIEW_COLUMNS = [("Ground Truth", "true_flood"), ("Baseline Prediction", "baseline_pred"), ("GNN Prediction", "gnn_pred")]
@@ -160,7 +283,8 @@ def build_animated_map_html(view_label: str, column: str) -> str:
         values = merged[column].fillna(0).astype(int).tolist()
         colors_by_phase.append([flood_fill_color(v) for v in values])
 
-    m = folium.Map(location=CHENNAI_CENTER, zoom_start=12.3, tiles=None, prefer_canvas=True)
+    # scrollWheelZoom off: scrolling the page past the map must not zoom it mid-presentation.
+    m = folium.Map(location=CHENNAI_CENTER, zoom_start=12.3, tiles=None, prefer_canvas=True, scrollWheelZoom=False)
     folium.TileLayer(tiles=DARK_TILES_URL, attr=DARK_TILES_ATTR, name="Dark basemap").add_to(m)
     folium.GeoJson(
         wards, style_function=lambda _: {"color": "#52514e", "weight": 1.5, "fillOpacity": 0.02},
@@ -257,103 +381,237 @@ def build_animated_map_html(view_label: str, column: str) -> str:
     return m._repr_html_()
 
 
-tab_overview, tab_map, tab_distress, tab_compare, tab_alloc, tab_limits = st.tabs(
-    ["\U0001F4CA Overview", "\U0001F30A Flood Propagation", "\U0001F4E1 Distress Signals",
-     "\U0001F4C8 Model Comparison", "\u2696\ufe0f Resource Allocation", "\U0001F50D Data & Limitations"]
+@st.cache_data(show_spinner=False)
+def phase_flood_shares() -> pd.DataFrame:
+    """Share of road segments flooded per phase, per view (real per-phase layers)."""
+    rows = []
+    for phase in PHASES:
+        layer = load_phase_layer(phase)
+        rows.append({"phase": phase, "Ground truth": layer["true_flood"].mean(),
+                     "Rule-based baseline": layer["baseline_pred"].mean(),
+                     "GNN (thresholded)": layer["gnn_pred"].mean(),
+                     "GNN average flood probability": layer["gnn_prob"].mean()})
+    return pd.DataFrame(rows).set_index("phase")
+
+
+@st.cache_resource(show_spinner=False)
+def load_geoparser():
+    from src.nlp.fuzzy_geoparse import geoparse_text, load_gazetteer
+    return geoparse_text, load_gazetteer()
+
+
+tab_story, tab_map, tab_distress, tab_compare, tab_alloc, tab_limits = st.tabs(
+    ["\U0001F9ED The Story", "\U0001F30A Flood Prediction", "\U0001F4E1 Distress Signals",
+     "\U0001F4C8 Model Verdict", "⚖️ Fair Relief", "\U0001F50D Limits & Honesty"]
 )
 
 # --------------------------------------------------------------------------
-# Overview
+# The Story (overview)
 # --------------------------------------------------------------------------
-with tab_overview:
-    c1, c2, c3, c4 = st.columns(4)
-    tiles = [
-        (c1, "Road Segments", f"{kpis['n_segments']:,}", "across 16 study wards", "blue"),
-        (c2, "Peak Flood Coverage", f"{kpis['peak_flooded_pct']}%", "of segments, at event peak", "red"),
-        (c3, "GNN Fair-Holdout AUC (val)", f"{kpis['gnn_val_auc']:.2f}", "vs. 0.50 = random chance", "green"),
-        (c4, "Distress Classifier F1", f"{kpis['classifier_f1']:.2f}", "17-example LOOCV (task 3.8)", "orange"),
-    ]
-    for col, label, value, caption, accent in tiles:
-        with col:
-            st.markdown(
-                f'<div class="kpi-card"><div class="kpi-label">{label}</div>'
-                f'<div class="kpi-value kpi-accent-{accent}">{value}</div>'
-                f'<div class="kpi-caption">{caption}</div></div>',
-                unsafe_allow_html=True,
-            )
+with tab_story:
+    story(
+        "The problem",
+        "In December 2015, Chennai's heaviest single-day rainfall since 1901 put most of the southern city under water.",
+        "Rule-based flood maps react after the water arrives, emergency lines hear only from people who can reach "
+        "them, and relief tends to follow whoever is loudest. This project builds one connected system that tackles "
+        f"all three — on {kpis['n_segments']:,} real road segments across {kpis['n_wards']} south-Chennai wards, "
+        f"where {kpis['peak_flooded_pct']}% of roads were under water at the peak.",
+    )
 
-    st.write("")
-    c5, c6, c7, c8 = st.columns(4)
-    tiles2 = [
-        (c5, "Baseline Test F1 (rising→peak)", f"{kpis['baseline_test_f1']:.2f}", "structurally can't anticipate onset", "red"),
-        (c6, "GNN Tuned Test F1 (rising→peak)", f"{kpis['gnn_tuned_test_f1']:.2f}", "see Data & Limitations tab", "orange"),
-        (c7, "Geoparsing Precision", f"{kpis['geoparse_precision']:.3f}", "36/37 real matches reviewed", "blue"),
-        (c8, "Geoparsing Recall", f"{kpis['geoparse_recall']:.2f}", "vs. task 1.13's real corpus", "green"),
-    ]
-    for col, label, value, caption, accent in tiles2:
-        with col:
-            st.markdown(
-                f'<div class="kpi-card"><div class="kpi-label">{label}</div>'
-                f'<div class="kpi-value kpi-accent-{accent}">{value}</div>'
-                f'<div class="kpi-caption">{caption}</div></div>',
-                unsafe_allow_html=True,
-            )
-
-    st.write("")
+    section("How the system fits together", "three objectives, each feeding the next")
+    if OPT is not None:
+        dd_starved = int(OPT["optimizer_report"]["models"]["demand_driven_optimum"]["n_starved_wards"])
+        eq_starved = int(OPT["plan_report"]["metrics"]["n_starved_wards"])
+        obj3_out = f"<b>{dd_starved} → {eq_starved}</b> wards left without relief"
+    else:
+        obj3_out = "run the Objective 3 scripts to populate"
     st.markdown(
-        '<div class="insight-card"><h4>What this dashboard shows</h4>'
-        "<p>The <b>Flood Propagation</b> tab animates real ground truth and both models' predictions "
-        "across the 2015 Chennai flood's four phases. The <b>Distress Signals</b> tab plots real "
-        "distress-text passages resolved to coordinates via Objective 2's classifier + geoparser. "
-        "<b>Model Comparison</b> tests working.md's core claim with real, honest numbers — including "
-        "where the ground truth itself limits what can be concluded (see <b>Data & Limitations</b>). "
-        "<b>Resource Allocation</b> closes the loop (Objective 3): flood state + distress signals + Census "
-        "vulnerability feed an optimizer that keeps silent, vulnerable wards from being starved of relief.</p></div>",
+        '<div class="pipeline">'
+        '<div class="stage" style="--c:#3987e5"><span class="step">1</span><span class="kicker">Predict</span>'
+        "<h3>Flood propagation on the road graph</h3>"
+        "<p>Every road segment is a node; a spatiotemporal graph neural network learns how flooding spreads from "
+        "elevation, slope, drainage and rainfall — compared against a hand-written rule.</p>"
+        f'<div class="out">Rule-based baseline at flood onset: <b>F1 = {kpis["baseline_test_f1"]:.2f}</b></div></div>'
+        '<div class="arrow">›</div>'
+        '<div class="stage" style="--c:#eb6834"><span class="step">2</span><span class="kicker">Listen</span>'
+        "<h3>Distress detection + geoparsing</h3>"
+        "<p>A multilingual MuRIL classifier flags text asking for help; a fuzzy gazetteer geoparser turns place names "
+        "(\"near Velachery bus stand\") into map coordinates.</p>"
+        f'<div class="out">Classifier <b>F1 = {kpis["classifier_f1"]:.2f}</b> · geoparsing precision '
+        f'<b>{kpis["geoparse_precision"]:.2f}</b></div></div>'
+        '<div class="arrow">›</div>'
+        '<div class="stage" style="--c:#0ca30c"><span class="step">3</span><span class="kicker">Decide</span>'
+        "<h3>Equity-constrained relief allocation</h3>"
+        "<p>Flood extent + distress signals + Census vulnerability feed an optimizer that guarantees every ward a "
+        "vulnerability-weighted floor before following reported demand.</p>"
+        f'<div class="out">{obj3_out}</div></div>'
+        "</div>",
         unsafe_allow_html=True,
     )
 
+    section("Three findings to remember")
+    f1, f2, f3 = st.columns(3)
+    findings = [
+        (f1, "#e66767", f"{kpis['baseline_test_f1']:.2f}", "The rule never sees the flood coming",
+         "A static, rule-based model scores F1 = 0 at the moment flooding starts, on every split of wards. "
+         f"The graph model shows real, modest skill on unseen wards (AUC {kpis['gnn_val_auc']:.2f} vs. 0.50 chance).",
+         "Objective 1"),
+        (f2, "#eb6834", f"{kpis['geoparse_precision']:.0%}", "Free text becomes a location",
+         f"Of 37 real place-name matches reviewed by hand, 36 resolved to the right place; the distress classifier "
+         f"reaches F1 = {kpis['classifier_f1']:.2f} on real flood reporting.", "Objective 2"),
+    ]
+    if OPT is not None:
+        eo_rep = OPT["optimizer_report"]
+        silent = eo_rep["signal_gap"]["robust_core_wards_with_zero_signal"]
+        core = OPT["vulnerability_report"]["robustness"]["robust_core"]
+        knee = next(r for r in eo_rep["price_of_fairness_frontier"] if r["rho"] == eo_rep["cheapest_no_starvation_rho"])
+        findings.append((f3, "#0ca30c", f"{len(silent)} of {len(core)}", "Most-vulnerable wards were silent",
+                         f"{len(silent)} of the {len(core)} most vulnerable wards sent no distress signal at all. "
+                         f"Demand-driven allocation leaves {dd_starved} wards without relief; the equity floor leaves "
+                         f"{eq_starved}, giving up only {knee['signal_coverage_loss_vs_rho0']:.1%} of reported-distress "
+                         "coverage.", "Objective 3"))
+    for col, color, big, what, why, tag in findings:
+        with col:
+            st.markdown(
+                f'<div class="finding" style="--c:{color}"><div class="tag">{tag}</div><div class="big">{big}</div>'
+                f'<div class="what">{what}</div><div class="why">{why}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+    section("Where to look next")
+    st.markdown(
+        '<div class="navgrid">'
+        '<div class="navcard"><div class="t">\U0001F30A Flood Prediction</div><div class="d">Watch the flood rise and '
+        "recede road by road — and see which model keeps up.</div></div>"
+        '<div class="navcard"><div class="t">\U0001F4E1 Distress Signals</div><div class="d">Real posts on the map, and '
+        "a live box that turns your sentence into places.</div></div>"
+        '<div class="navcard"><div class="t">\U0001F4C8 Model Verdict</div><div class="d">The baseline-vs-GNN test, '
+        "with the numbers that make it fair.</div></div>"
+        '<div class="navcard"><div class="t">⚖️ Fair Relief</div><div class="d">Move the equity slider and '
+        "watch the allocation re-solve live.</div></div>"
+        '<div class="navcard"><div class="t">\U0001F50D Limits & Honesty</div><div class="d">What the data can and '
+        "cannot support — stated, not hidden.</div></div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    with st.expander("Technical metrics (for the Q&A)"):
+        c1, c2, c3, c4 = st.columns(4)
+        kpi_row([
+            (c1, "Road Segments", f"{kpis['n_segments']:,}", "across 16 study wards", "blue"),
+            (c2, "Peak Flood Coverage", f"{kpis['peak_flooded_pct']}%", "of segments, at event peak", "red"),
+            (c3, "GNN Fair-Holdout AUC (val)", f"{kpis['gnn_val_auc']:.2f}", "vs. 0.50 = random chance", "green"),
+            (c4, "Distress Classifier F1", f"{kpis['classifier_f1']:.2f}", "17-example LOOCV (task 3.8)", "orange"),
+        ])
+        st.write("")
+        c5, c6, c7, c8 = st.columns(4)
+        kpi_row([
+            (c5, "Baseline Test F1 (rising→peak)", f"{kpis['baseline_test_f1']:.2f}", "structurally can't anticipate onset", "red"),
+            (c6, "GNN Tuned Test F1 (rising→peak)", f"{kpis['gnn_tuned_test_f1']:.2f}", "see Limits & Honesty", "orange"),
+            (c7, "Geoparsing Precision", f"{kpis['geoparse_precision']:.3f}", "36/37 real matches reviewed", "blue"),
+            (c8, "Geoparsing Recall", f"{kpis['geoparse_recall']:.2f}", "vs. task 1.13's real corpus", "green"),
+        ])
+
 # --------------------------------------------------------------------------
-# Flood Propagation Map (task 6.2)
+# Flood Prediction (task 6.2)
 # --------------------------------------------------------------------------
 with tab_map:
+    shares = phase_flood_shares()
+    story(
+        "Objective 1 · Where does the water go, and which model sees it coming?",
+        "Reality turns the map red at the peak. The rule-based baseline stays dry until the water is already "
+        "receding.",
+        f"At the peak, {shares.loc['peak', 'Ground truth']:.0%} of roads are flooded in the ground truth, and "
+        f"{shares.loc['peak', 'Rule-based baseline']:.0%} in the baseline's prediction. The graph model's average "
+        f"flood probability rises from {shares.loc['rising', 'GNN average flood probability']:.2f} to "
+        f"{shares.loc['peak', 'GNN average flood probability']:.2f} as the flood arrives.",
+    )
+    st.markdown(
+        '<div class="phase-row">'
+        + "".join(
+            f'<div class="phase{" hot" if p == "peak" else ""}"><div class="p">{PHASE_LABELS[p]}</div>'
+            f'<div class="dt">{_phase_date_label(p)}</div></div>' for p in PHASES)
+        + "</div>",
+        unsafe_allow_html=True,
+    )
     left, right = st.columns([1, 3])
     with left:
-        st.markdown("#### Controls")
-        view = st.radio("Show", ["Ground Truth", "Baseline Prediction", "GNN Prediction"], index=0)
+        view = st.radio("Show on the map", ["Ground Truth", "Baseline Prediction", "GNN Prediction"], index=0)
         column_map = dict(VIEW_COLUMNS)
-
-        st.caption(
-            "Play/Pause on the map animate all 4 phases directly in your browser "
-            "(no reloading) — the phase label above the map updates in place."
-        )
-        if view != "Ground Truth":
-            st.info("Pre-Event is never a model target (task 2.7's schema) — always shown dry for Baseline/GNN too.")
-
-        st.markdown("#### Legend")
         st.markdown(
-            f'<span class="legend-swatch" style="background:{COLOR_DRY}"></span>Dry / not flooded<br>'
+            f'<span class="legend-swatch" style="background:{COLOR_DRY}"></span>Dry &nbsp;&nbsp;'
             f'<span class="legend-swatch" style="background:{COLOR_FLOODED}"></span>Flooded',
             unsafe_allow_html=True,
         )
-
+        st.markdown(
+            '<div class="watch"><ul>'
+            "<li>Press <b>▶ Play</b> on the map — it cycles the 4 phases in your browser.</li>"
+            "<li><b>Ground Truth:</b> watch low-lying roads fill first at the <b>Peak</b>.</li>"
+            "<li><b>Baseline:</b> stays blue through the Peak — it only turns red at <b>Receding</b>, "
+            "after the fact.</li>"
+            "<li><b>GNN:</b> flags every road from Rising on — a known threshold artifact (see Limits); its "
+            "<i>probability</i> is what tracks the flood (chart below).</li>"
+            "</ul></div>",
+            unsafe_allow_html=True,
+        )
+        if view != "Ground Truth":
+            st.caption("Pre-Event is never a model target (task 2.7's schema) — always shown dry for Baseline/GNN.")
     with right:
-        st.markdown(f"**{view}** (all 4 phases — use the map's own Play button)")
         map_html = build_animated_map_html(view, column_map[view])
-        components.html(map_html, height=620)
+        st.iframe(map_html, height=620)
+
+    section("Share of roads flooded, phase by phase", "ground truth vs. each model")
+    x = [f"{PHASE_LABELS[p]}<br><sub>{_phase_date_label(p)}</sub>" for p in PHASES]
+    fig_t = go.Figure()
+    fig_t.add_trace(go.Scatter(x=x, y=shares["Ground truth"], name="Ground truth (observed)", mode="lines+markers",
+                               line={"color": COLOR_FLOODED, "width": 4}, marker={"size": 11}))
+    fig_t.add_trace(go.Scatter(x=x, y=shares["Rule-based baseline"], name="Rule-based baseline", mode="lines+markers",
+                               line={"color": COLOR_BASELINE, "width": 3}, marker={"size": 9}))
+    fig_t.add_trace(go.Scatter(x=x, y=shares["GNN average flood probability"], name="GNN average flood probability",
+                               mode="lines+markers", line={"color": COLOR_GNN, "width": 3}, marker={"size": 9}))
+    fig_t.add_trace(go.Scatter(x=x, y=shares["GNN (thresholded)"], name="GNN thresholded (flags everything)",
+                               mode="lines", line={"color": COLOR_GNN, "width": 1.5, "dash": "dot"}))
+    fig_t.add_annotation(x=x[2], y=shares.loc["peak", "Rule-based baseline"], text="Baseline misses the peak entirely",
+                         showarrow=True, arrowhead=2, ax=0, ay=-60, font={"color": "#ffffff", "size": 13},
+                         bgcolor="#1a1a19", bordercolor=COLOR_BASELINE)
+    fig_t.add_annotation(x=x[3], y=shares.loc["receding", "Rule-based baseline"], text="…and reacts only afterwards",
+                         showarrow=True, arrowhead=2, ax=-120, ay=30, font={"color": "#ffffff", "size": 13},
+                         bgcolor="#1a1a19", bordercolor=COLOR_BASELINE)
+    fig_t.update_layout(template="plotly_dark", height=420, yaxis_tickformat=".0%", yaxis_range=[-0.05, 1.08],
+                        yaxis_title="share of road segments", legend={"orientation": "h", "y": -0.25},
+                        margin={"t": 20}, font={"size": 14}, paper_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(fig_t, width='stretch')
 
 # --------------------------------------------------------------------------
 # Distress Signals (task 6.3)
 # --------------------------------------------------------------------------
 with tab_distress:
-    st.markdown("#### Objective 2: distress posts resolved to a coordinate")
-    st.caption(
-        "Real passages from task 1.13's corpus, classified as distress (task 3.8's MuRIL classifier) "
-        "and geoparsed to a real location (task 2.10) — working.md §2.4's actual deliverable."
-    )
     markers_df = load_distress_markers()
+    story(
+        "Objective 2 · Who is asking for help, and where are they?",
+        f"{markers_df['text'].nunique()} real flood-distress passages, automatically placed at "
+        f"{markers_df['place'].nunique()} locations on the map.",
+        "Each passage is real 2015 reporting. A multilingual classifier decides whether it is a call for help; a "
+        "gazetteer geoparser finds the place names inside it and pins them to coordinates.",
+    )
+    st.markdown(
+        '<div class="steps">'
+        '<div class="stepbox"><div class="n">STEP 1</div><div class="t">Raw text</div><div class="d">News, reports and '
+        "first-hand accounts from the 2015 flood.</div></div><div class=\"arrow\">›</div>"
+        f'<div class="stepbox"><div class="n">STEP 2</div><div class="t">Is it distress?</div><div class="d">MuRIL '
+        f"(multilingual BERT) classifier, F1 = {kpis['classifier_f1']:.2f}.</div></div><div class=\"arrow\">›</div>"
+        f'<div class="stepbox"><div class="n">STEP 3</div><div class="t">Where?</div><div class="d">Fuzzy match against '
+        f"a {len(load_geoparser()[1]):,}-name local gazetteer, precision {kpis['geoparse_precision']:.2f}.</div></div>"
+        '<div class="arrow">›</div>'
+        '<div class="stepbox"><div class="n">STEP 4</div><div class="t">On the map</div><div class="d">Pinned below — '
+        "and counted per ward as the demand signal for Fair Relief.</div></div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
-    m2 = folium.Map(location=CHENNAI_CENTER, zoom_start=12.3, tiles=None, prefer_canvas=True)
+    m2 = folium.Map(location=CHENNAI_CENTER, zoom_start=12.6, tiles=None, prefer_canvas=True, scrollWheelZoom=False)
     folium.TileLayer(tiles=DARK_TILES_URL, attr=DARK_TILES_ATTR, name="Dark basemap").add_to(m2)
+    folium.GeoJson(load_wards(), style_function=lambda _: {"color": "#52514e", "weight": 1.2, "fillOpacity": 0.03}).add_to(m2)
     pulse_css = """
     <style>
     .pulse-marker {
@@ -376,58 +634,112 @@ with tab_distress:
                 f"<b>{row['place']}</b> (p={row['probability']:.3f})<br><i>{row['text'][:220]}...</i>", max_width=320
             ),
         ).add_to(m2)
-    components.html(m2._repr_html_(), height=560)
+    map_col, try_col = st.columns([1.6, 1])
+    with map_col:
+        st.iframe(m2._repr_html_(), height=540)
+        st.caption("Click a pulsing marker to read the passage behind it.")
+    with try_col:
+        section("Try the geoparser live")
+        sample = "Water entered our houses near Velachery and Taramani, we are stuck on the first floor."
+        text = st.text_area("Type a sentence mentioning Chennai places", sample, height=110)
+        geoparse_text, gazetteer = load_geoparser()
+        matches = geoparse_text(text, gazetteer) if text.strip() else []
+        if matches:
+            st.markdown("".join(f'<span class="match-chip">"{m["text"]}" → {m["matched_name"]} ({m["score"]:.0f})</span>'
+                                for m in matches), unsafe_allow_html=True)
+            fig_g = go.Figure(go.Scattermap(lat=[m["lat"] for m in matches], lon=[m["lon"] for m in matches],
+                                            mode="markers+text", text=[m["matched_name"] for m in matches],
+                                            textposition="top right", textfont={"color": "#ffffff", "size": 13},
+                                            marker={"size": 16, "color": "#0ca30c"}))
+            fig_g.update_layout(
+                map={"style": "white-bg", "center": {"lat": CHENNAI_CENTER[0], "lon": CHENNAI_CENTER[1]}, "zoom": 11.3,
+                     "layers": [{"below": "traces", "sourcetype": "raster", "source": [DARK_TILES_URL],
+                                 "sourceattribution": MAP_ATTR_SHORT}]},
+                margin={"l": 0, "r": 0, "t": 0, "b": 0}, height=300, showlegend=False)
+            st.plotly_chart(fig_g, width='stretch', config={"scrollZoom": False})
+        else:
+            st.info("No known place names found — the geoparser only resolves names in its local gazetteer "
+                    "(it correctly returns nothing rather than guessing).")
+        st.caption("Runs task 2.10's real geoparser on your text. The distress classifier itself (a 237M-parameter "
+                   "model) is not run live; the markers on the left use its saved predictions.")
 
-    st.markdown(f"**{len(markers_df)} resolved distress markers** across {markers_df['place'].nunique()} unique places")
-    st.dataframe(
-        markers_df[["place", "probability", "text"]].rename(columns={"probability": "distress_probability"}),
-        width='stretch', hide_index=True,
-    )
+    with st.expander(f"All {len(markers_df)} resolved markers"):
+        st.dataframe(
+            markers_df[["place", "probability", "text"]].rename(columns={"probability": "distress_probability"}),
+            width='stretch', hide_index=True,
+        )
 
 # --------------------------------------------------------------------------
-# Model Comparison (task 5.3's data, interactive)
+# Model Verdict (task 5.3's data, interactive)
 # --------------------------------------------------------------------------
 with tab_compare:
     comparison = load_json_report(GROUND_TRUTH_DIR / "baseline_vs_gnn_comparison.json")
     comparison_table = comparison["comparison_table"]
     fair_auc = comparison["fair_holdout_auc_train_only_model"]
-
-    st.markdown("#### F1 per transition per split — baseline vs. tuned GNN")
-    transitions = list(comparison_table.keys())
     splits = ["train", "val", "test"]
-    fig = go.Figure()
-    for name, color in [("baseline_f1", COLOR_BASELINE), ("gnn_f1", COLOR_GNN)]:
-        fig.add_trace(go.Bar(
-            name="Baseline" if name == "baseline_f1" else "GNN (tuned)",
-            x=[f"{t}<br>{s}" for t in transitions for s in splits],
-            y=[comparison_table[t][s][name] or 0 for t in transitions for s in splits],
-            marker_color=color,
-        ))
-    fig.update_layout(barmode="group", template="plotly_dark", height=420, yaxis_title="F1", legend_title=None)
-    st.plotly_chart(fig, width='stretch')
+    onset = comparison_table["rising->peak"]
+    story(
+        "Objective 1 · Does learning on the road graph beat a hand-written rule?",
+        "At flood onset, yes: the rule scores zero on every group of wards. The graph model shows real but modest "
+        "skill where the data is able to test it.",
+        "F1 rewards getting flooded roads right. AUC asks a harder question — can the model rank which roads flood "
+        "first? — where 0.50 is a coin flip.",
+    )
+    c1, c2 = st.columns(2)
+    with c1:
+        section("Flood onset (Rising → Peak): F1 score")
+        fig = go.Figure()
+        fig.add_trace(go.Bar(name="Rule-based baseline", x=[SPLIT_LABELS[s] for s in splits],
+                             y=[onset[s]["baseline_f1"] or 0 for s in splits], marker_color=COLOR_BASELINE,
+                             text=[f"{(onset[s]['baseline_f1'] or 0):.2f}" for s in splits], textposition="outside"))
+        fig.add_trace(go.Bar(name="Graph neural network", x=[SPLIT_LABELS[s] for s in splits],
+                             y=[onset[s]["gnn_f1"] for s in splits], marker_color=COLOR_GNN,
+                             text=[f"{onset[s]['gnn_f1']:.2f}" for s in splits], textposition="outside"))
+        fig.update_layout(barmode="group", template="plotly_dark", height=400, yaxis_range=[0, 1.15], yaxis_title="F1",
+                          legend={"orientation": "h", "y": -0.18}, margin={"t": 20}, font={"size": 14},
+                          paper_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig, width='stretch')
+    with c2:
+        section("Ranking skill on unseen wards: AUC", "train-only model, 0.50 = coin flip")
+        fig2 = go.Figure()
+        for i, transition in enumerate(["rising->peak", "peak->receding"]):
+            fig2.add_trace(go.Bar(
+                name=TRANSITION_LABELS[transition], x=[SPLIT_LABELS[s] for s in ["val", "test"]],
+                y=[fair_auc[transition][s] for s in ["val", "test"]], marker_color=[COLOR_GNN, "#eda100"][i],
+                text=[f"{fair_auc[transition][s]:.2f}" for s in ["val", "test"]], textposition="outside",
+            ))
+        fig2.add_hline(y=0.5, line_dash="dash", line_color="#e66767", annotation_text="coin flip (0.50)",
+                       annotation_position="top left")
+        fig2.update_layout(barmode="group", template="plotly_dark", height=400, yaxis_title="AUC-ROC",
+                           yaxis_range=[0, 1], legend={"orientation": "h", "y": -0.18}, margin={"t": 20},
+                           font={"size": 14}, paper_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig2, width='stretch')
 
-    st.markdown("#### Fair-holdout AUC-ROC (task 4.1's train-only model — val/test genuinely unseen)")
-    fig2 = go.Figure()
-    for i, transition in enumerate(["rising->peak", "peak->receding"]):
-        fig2.add_trace(go.Bar(
-            name=transition, x=splits, y=[fair_auc[transition][s] for s in splits],
-            marker_color=[COLOR_BASELINE, COLOR_GNN][i],
-        ))
-    fig2.add_hline(y=0.5, line_dash="dash", line_color="#e66767", annotation_text="random chance")
-    fig2.update_layout(barmode="group", template="plotly_dark", height=420, yaxis_title="AUC-ROC", yaxis_range=[0, 1])
-    st.plotly_chart(fig2, width='stretch')
-
-    st.markdown("#### Honest core-claim verdict (working.md §1.6)")
+    section("The honest verdict", "working.md §1.6's core claim")
     for transition, v in comparison["core_claim_verdicts"].items():
         st.markdown(
             f'<div class="insight-card {"good" if "SUPPORTED" in v["val_conclusion"] else "warning"}">'
-            f"<h4>{transition}</h4>"
-            f"<p><b>Val:</b> {v['val_conclusion']}<br><b>Test:</b> {v['test_conclusion']}</p></div>",
+            f"<h4>{TRANSITION_LABELS.get(transition, transition)}</h4>"
+            f"<p><b>Validation wards:</b> {v['val_conclusion']}<br><b>Test wards:</b> {v['test_conclusion']}</p></div>",
             unsafe_allow_html=True,
         )
 
+    with st.expander("Full F1 table: every phase transition × every group of wards"):
+        transitions = list(comparison_table.keys())
+        fig3 = go.Figure()
+        for name, color, label in [("baseline_f1", COLOR_BASELINE, "Rule-based baseline"),
+                                   ("gnn_f1", COLOR_GNN, "Graph neural network (tuned)")]:
+            fig3.add_trace(go.Bar(
+                name=label, x=[f"{TRANSITION_LABELS[t]}<br>{SPLIT_LABELS[s]}" for t in transitions for s in splits],
+                y=[comparison_table[t][s][name] or 0 for t in transitions for s in splits], marker_color=color,
+            ))
+        fig3.update_layout(barmode="group", template="plotly_dark", height=430, yaxis_title="F1", legend_title=None,
+                           paper_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig3, width='stretch')
+        st.caption("Pre-event → Rising is trivial for both models (no road floods before the rain), so both score 0.")
+
 # --------------------------------------------------------------------------
-# Resource Allocation (task 7.3 -- Objective 3, tasks 7.1/7.2's outputs)
+# Fair Relief (task 7.3 -- Objective 3, tasks 7.1/7.2's outputs)
 # --------------------------------------------------------------------------
 COLOR_DEMAND = "#9e9e9e"
 COLOR_EQUITY = "#6a040f"
@@ -446,7 +758,12 @@ def render_allocation_tab(opt: dict) -> None:
     eo = opt["optimizer_report"]
     plan_rho = opt["plan_report"]["rho"]
 
-    st.markdown("#### Objective 3: equity-constrained relief allocation")
+    story(
+        "Objective 3 · Who should get relief when there isn't enough for everyone?",
+        "Guarantee every ward a vulnerability-weighted floor first — then let reported distress steer the rest.",
+        "Allocating purely by reported distress sends nothing to the wards that stayed silent. Move the slider "
+        "to see the trade-off re-solve live.",
+    )
     st.caption(
         "Affected people = Census 2011 population (task 7.1, crosswalked onto the post-2011 wards) x road-length "
         "share flooded at peak (fused ground truth). Distress signals = real Objective 2 posts per ward. "
@@ -528,10 +845,10 @@ def render_allocation_tab(opt: dict) -> None:
         fig_map.update_layout(
             map={"style": "white-bg", "center": {"lat": CHENNAI_CENTER[0], "lon": CHENNAI_CENTER[1]}, "zoom": 11.7,
                  "layers": [{"below": "traces", "sourcetype": "raster", "source": [DARK_TILES_URL],
-                             "sourceattribution": DARK_TILES_ATTR}]},
+                             "sourceattribution": MAP_ATTR_SHORT}]},
             margin={"l": 0, "r": 0, "t": 0, "b": 0}, height=470, template="plotly_dark",
         )
-        st.plotly_chart(fig_map, width='stretch')
+        st.plotly_chart(fig_map, width='stretch', config={"scrollZoom": False})
 
     order = inputs.sort_values("vulnerability", ascending=False).index
     fig_cov = go.Figure()
@@ -606,11 +923,15 @@ with tab_alloc:
     except FileNotFoundError as e:
         st.warning(f"Objective 3 outputs not generated yet: {e}")
 
+
 # --------------------------------------------------------------------------
-# Data & Limitations (task 5.4/5.5's findings, presented honestly)
+# Limits & Honesty (task 5.4/5.5's findings, presented honestly)
 # --------------------------------------------------------------------------
 with tab_limits:
-    st.markdown("#### Real, disclosed limitations — not hidden behind the headline numbers")
+    story(
+        "What can — and can't — this project claim?",
+        "Every headline number comes with the limitation that shapes it, found by checking the data, not assumed.",
+    )
 
     anomaly = load_json_report(GROUND_TRUTH_DIR / "sanity_check_comparison_anomalies_report.json")
     obj2 = load_json_report(NLP_DIR / "objective2_precision_recall_report.json")
@@ -624,6 +945,13 @@ with tab_limits:
         f'confirmed by checking the actual elevation-flood correlation per ward, not assumed.</p></div>',
         unsafe_allow_html=True,
     )
+    st.markdown(
+        '<div class="insight-card warning"><h4>The tuned GNN flags every road as flooded</h4>'
+        f"<p>Its reported F1 = {kpis['gnn_tuned_test_f1']:.2f} comes from matching a flood that covered most of the "
+        "study area, not from per-road discrimination — the thresholded model predicts \"flooded\" for 100% of test roads. "
+        "Its probabilities (and the AUC built on them) are the honest measure of skill.</p></div>",
+        unsafe_allow_html=True,
+    )
 
     fp = obj2["geoparsing_precision_new"]["false_positive_examples"][0]
     st.markdown(
@@ -631,6 +959,14 @@ with tab_limits:
         f'<p>"<b>{fp["matched_text"]}</b>" incorrectly resolves to "<b>{fp["resolved_to"]}</b>": {fp["reason"]}</p></div>',
         unsafe_allow_html=True,
     )
+    if OPT is not None:
+        st.markdown(
+            '<div class="insight-card warning"><h4>Objective 3 is only as fine-grained as Census 2011</h4>'
+            "<p>The 16 post-2011 wards had to be rebuilt from the old 155-ward census map and rest on 12 distinct census "
+            "units; sanitation data exists only per town; and the demand side is 10 real distress posts — enough to "
+            "expose the bias, not to measure demand precisely.</p></div>",
+            unsafe_allow_html=True,
+        )
 
     st.markdown(
         '<div class="insight-card good"><h4>What genuinely works</h4>'
@@ -638,9 +974,17 @@ with tab_limits:
         "a real, measured failure mode, not an assumption. The GNN shows real (if modest) learned "
         "discrimination on the one ward with genuine ground-truth variance (AUC ~0.59–0.60, fairly "
         "held out). The Objective 2 pipeline correctly composes classification and geoparsing as two "
-        "independent branches, verified on genuinely new text.</p></div>",
+        "independent branches, verified on genuinely new text. The equity floor removes starvation in every "
+        "sensitivity scenario tested.</p></div>",
         unsafe_allow_html=True,
     )
 
     with st.expander("Full per-ward informativeness table (task 5.4)"):
         st.dataframe(pd.DataFrame(anomaly["by_phase"]["peak"]["ward_table"]), width='stretch', hide_index=True)
+
+st.markdown(
+    '<div class="footer">Data: OpenStreetMap road network · SRTM 30 m DEM · IMD + Open-Meteo rainfall · Sentinel-1 SAR '
+    "(Google Earth Engine) · NRSC Bhuvan · news & advisories · Census of India 2011 · DataMeet ward boundaries. "
+    "Every number on this dashboard is read from the project's own generated reports.</div>",
+    unsafe_allow_html=True,
+)
