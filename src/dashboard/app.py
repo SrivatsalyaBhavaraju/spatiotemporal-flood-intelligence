@@ -1,7 +1,9 @@
 """
 Task 6.1/6.2/6.3 -- Streamlit + Folium integration dashboard. This is
 where Objective 1 (flood propagation, baseline vs. GNN) and Objective 2
-(distress classification + geoparsing) visibly become one system.
+(distress classification + geoparsing) visibly become one system. Task 7.3
+adds the Resource Allocation tab: Objective 3's equity-constrained
+optimizer, re-solved live (task 7.2's own MIP) as the rho/budget sliders move.
 
 Run with:
     streamlit run src/dashboard/app.py
@@ -37,9 +39,11 @@ from src.dashboard.data_loader import (  # noqa: E402
     flood_fill_color,
     load_distress_markers,
     load_json_report,
+    load_optimizer_outputs,
     load_phase_layer,
     load_wards,
 )
+from src.optimizer.equity_optimizer import evaluate_allocation, solve_allocation  # noqa: E402
 
 CHENNAI_CENTER = [12.985, 80.225]
 # CartoDB's free dark tiles now require an API key (discovered while testing this dashboard --
@@ -253,9 +257,9 @@ def build_animated_map_html(view_label: str, column: str) -> str:
     return m._repr_html_()
 
 
-tab_overview, tab_map, tab_distress, tab_compare, tab_limits = st.tabs(
+tab_overview, tab_map, tab_distress, tab_compare, tab_alloc, tab_limits = st.tabs(
     ["\U0001F4CA Overview", "\U0001F30A Flood Propagation", "\U0001F4E1 Distress Signals",
-     "\U0001F4C8 Model Comparison", "\U0001F50D Data & Limitations"]
+     "\U0001F4C8 Model Comparison", "\u2696\ufe0f Resource Allocation", "\U0001F50D Data & Limitations"]
 )
 
 # --------------------------------------------------------------------------
@@ -302,7 +306,9 @@ with tab_overview:
         "across the 2015 Chennai flood's four phases. The <b>Distress Signals</b> tab plots real "
         "distress-text passages resolved to coordinates via Objective 2's classifier + geoparser. "
         "<b>Model Comparison</b> tests working.md's core claim with real, honest numbers — including "
-        "where the ground truth itself limits what can be concluded (see <b>Data & Limitations</b>).</p></div>",
+        "where the ground truth itself limits what can be concluded (see <b>Data & Limitations</b>). "
+        "<b>Resource Allocation</b> closes the loop (Objective 3): flood state + distress signals + Census "
+        "vulnerability feed an optimizer that keeps silent, vulnerable wards from being starved of relief.</p></div>",
         unsafe_allow_html=True,
     )
 
@@ -419,6 +425,186 @@ with tab_compare:
             f"<p><b>Val:</b> {v['val_conclusion']}<br><b>Test:</b> {v['test_conclusion']}</p></div>",
             unsafe_allow_html=True,
         )
+
+# --------------------------------------------------------------------------
+# Resource Allocation (task 7.3 -- Objective 3, tasks 7.1/7.2's outputs)
+# --------------------------------------------------------------------------
+COLOR_DEMAND = "#9e9e9e"
+COLOR_EQUITY = "#6a040f"
+
+
+@st.cache_data(show_spinner=False)
+def solve_live(inputs: pd.DataFrame, budget: int, rho: float) -> pd.Series:
+    """Task 7.2's own MIP (16 integer variables -- solves in milliseconds)."""
+    return solve_allocation(inputs, budget, rho)
+
+
+def render_allocation_tab(opt: dict) -> None:
+    inputs = opt["inputs"]
+    plan = opt["plan"]
+    core = opt["vulnerability_report"]["robustness"]["robust_core"]
+    eo = opt["optimizer_report"]
+    plan_rho = opt["plan_report"]["rho"]
+
+    st.markdown("#### Objective 3: equity-constrained relief allocation")
+    st.caption(
+        "Affected people = Census 2011 population (task 7.1, crosswalked onto the post-2011 wards) x road-length "
+        "share flooded at peak (fused ground truth). Distress signals = real Objective 2 posts per ward. "
+        "Vulnerability = task 7.1's index. The optimizer is task 7.2's OR-Tools MIP, re-solved live below."
+    )
+
+    zero_sig = inputs["signals"] == 0
+    dd_primary = eo["models"]["demand_driven_optimum"]
+    c1, c2, c3, c4 = st.columns(4)
+    for col, label, value, caption, accent in [
+        (c1, "Affected People", f"{int(inputs['need'].sum()):,}", "population x flooded share at peak", "blue"),
+        (c2, "Need in Silent Wards", f"{inputs.loc[zero_sig, 'need'].sum() / inputs['need'].sum():.0%}",
+         f"{int(zero_sig.sum())} wards with zero distress posts", "orange"),
+        (c3, "Starved by Demand-Driven", f"{int(dd_primary['n_starved_wards'])} / 16",
+         "wards under 5% coverage (25% budget)", "red"),
+        (c4, "Starved by Equity Plan", f"{int(opt['plan_report']['metrics']['n_starved_wards'])} / 16",
+         f"recommended rho = {plan_rho:g}", "green"),
+    ]:
+        with col:
+            st.markdown(
+                f'<div class="kpi-card"><div class="kpi-label">{label}</div>'
+                f'<div class="kpi-value kpi-accent-{accent}">{value}</div>'
+                f'<div class="kpi-caption">{caption}</div></div>',
+                unsafe_allow_html=True,
+            )
+    st.write("")
+    silent_core = eo["signal_gap"]["robust_core_wards_with_zero_signal"]
+    st.markdown(
+        '<div class="insight-card warning"><h4>The bias this exists to fix — measured, not assumed</h4>'
+        f"<p><b>{len(silent_core)} of the {len(core)} most robustly vulnerable wards "
+        f"({', '.join(map(str, silent_core))}) produced zero distress signal.</b> Reported distress clusters "
+        "where 2015 news coverage went (Velachery, Kotturpuram). Any allocator that follows reported demand alone "
+        "gives these wards nothing — the optimizer guarantees each ward a vulnerability-weighted floor, and lets "
+        "the rest of the budget follow reported distress.</p></div>",
+        unsafe_allow_html=True,
+    )
+
+    left, right = st.columns([1, 2.2])
+    with left:
+        st.markdown("#### Try it")
+        rho = st.slider("Equity floor strength (rho)", 0.0, 1.0, float(plan_rho), 0.05,
+                        help="0 = no floor (pure demand-driven). 1 = the most vulnerable ward is guaranteed "
+                             "at least the even-split coverage; others a vulnerability-proportional share of it.")
+        share = st.slider("Relief budget (% of affected people)", 5, 60, 25, 5)
+        budget = int(round(share / 100 * inputs["need"].sum()))
+        eq_units = solve_live(inputs, budget, rho)
+        dd_units = solve_live(inputs, budget, 0.0)
+        m_eq = evaluate_allocation(inputs, eq_units, core)
+        m_dd = evaluate_allocation(inputs, dd_units, core)
+        base_sig = m_dd["signal_weighted_coverage"]
+        loss = 1 - m_eq["signal_weighted_coverage"] / base_sig if base_sig else 0.0
+        top3 = eq_units.sort_values(ascending=False).index[:3]
+        st.metric("Starved wards (<5% coverage)", m_eq["n_starved_wards"],
+                  delta=int(m_eq["n_starved_wards"] - m_dd["n_starved_wards"]), delta_color="inverse",
+                  help="delta vs. the demand-driven optimum at the same budget")
+        st.metric("Lowest coverage, robust-core wards", f"{m_eq['core_wards_min_coverage']:.1%}",
+                  delta=f"{(m_eq['core_wards_min_coverage'] - m_dd['core_wards_min_coverage']) * 100:+.1f} pts")
+        st.metric("Reported-distress coverage given up", f"{loss:.1%}", help="the price of fairness")
+        st.metric("Relief to the 3 best-served wards", f"{eq_units[top3].sum() / eq_units.sum():.0%}",
+                  help=f"they hold {inputs.loc[top3, 'need'].sum() / inputs['need'].sum():.0%} of need")
+        st.caption(f"Budget: {budget:,} relief units. Each move re-solves task 7.2's MIP.")
+
+    with right:
+        cov = (eq_units / inputs["need"]).rename("coverage")
+        wards_geo = load_wards()
+        wards_geo["Ward_No"] = wards_geo["Ward_No"].astype(int)
+        geojson = json.loads(wards_geo[["Ward_No", "geometry"]].to_json())
+        for f in geojson["features"]:
+            f["id"] = int(f["properties"]["Ward_No"])
+        hover = [f"<b>Ward {w}</b> {plan.loc[w, 'locality'] if w in plan.index else ''}<br>"
+                 f"coverage {cov[w]:.0%} ({int(eq_units[w]):,} / {int(inputs.loc[w, 'need']):,})<br>"
+                 f"vulnerability {inputs.loc[w, 'vulnerability']:.2f} · distress posts {int(inputs.loc[w, 'signals'])}"
+                 for w in cov.index]
+        fig_map = go.Figure(go.Choroplethmap(
+            geojson=geojson, locations=list(cov.index), z=list(cov.values), zmin=0, zmax=1,
+            colorscale="YlGn", marker_opacity=0.75, marker_line_width=1, marker_line_color="#222",
+            text=hover, hoverinfo="text", colorbar={"title": "coverage", "tickformat": ".0%"},
+        ))
+        fig_map.update_layout(
+            map={"style": "white-bg", "center": {"lat": CHENNAI_CENTER[0], "lon": CHENNAI_CENTER[1]}, "zoom": 11.7,
+                 "layers": [{"below": "traces", "sourcetype": "raster", "source": [DARK_TILES_URL],
+                             "sourceattribution": DARK_TILES_ATTR}]},
+            margin={"l": 0, "r": 0, "t": 0, "b": 0}, height=470, template="plotly_dark",
+        )
+        st.plotly_chart(fig_map, width='stretch')
+
+    order = inputs.sort_values("vulnerability", ascending=False).index
+    fig_cov = go.Figure()
+    fig_cov.add_trace(go.Bar(name="Demand-driven optimum (rho=0)", x=[str(w) for w in order],
+                             y=(dd_units / inputs["need"])[order], marker_color=COLOR_DEMAND))
+    fig_cov.add_trace(go.Bar(name=f"Equity-constrained (rho={rho:g})", x=[str(w) for w in order],
+                             y=cov[order], marker_color=COLOR_EQUITY))
+    fig_cov.update_layout(
+        barmode="group", template="plotly_dark", height=380, yaxis_title="coverage", yaxis_tickformat=".0%",
+        xaxis_title="ward (most -> least vulnerable)", legend_title=None,
+        xaxis={"tickvals": [str(w) for w in order],
+               "ticktext": [f"{w}{'*' if w in core else ''}<br>sig={int(inputs.loc[w, 'signals'])}" for w in order]},
+    )
+    st.markdown("#### Coverage per ward — * robust-core vulnerable ward, sig = real distress posts")
+    st.plotly_chart(fig_cov, width='stretch')
+
+    st.markdown(f"#### Ranked relief plan (recommended rho = {plan_rho:g}, 25% budget, one 3-day relief cycle)")
+    show = plan.reset_index()[["dispatch_priority", "Ward_No", "locality", "tranche_a_units", "tranche_b_units",
+                               "total_units", "coverage", "coverage_min", "coverage_max", "firmness",
+                               "water_litres", "food_ration_days", "emergency_toilets", "rationale"]]
+    st.dataframe(
+        show, width='stretch', hide_index=True,
+        column_config={
+            "dispatch_priority": st.column_config.NumberColumn("#", help="first dispatch step"),
+            "Ward_No": st.column_config.NumberColumn("Ward", format="%d"),
+            "locality": st.column_config.TextColumn("Locality"),
+            "total_units": st.column_config.NumberColumn("Total", format="%d"),
+            "firmness": st.column_config.TextColumn("Firmness"),
+            "rationale": st.column_config.TextColumn("Why", width="large"),
+            "tranche_a_units": st.column_config.NumberColumn("Floor (A)", format="%d"),
+            "tranche_b_units": st.column_config.NumberColumn("Demand (B)", format="%d"),
+            "coverage": st.column_config.ProgressColumn("Coverage", min_value=0.0, max_value=1.0, format="percent"),
+            "coverage_min": st.column_config.NumberColumn("Band min", format="percent"),
+            "coverage_max": st.column_config.NumberColumn("Band max", format="percent"),
+            "water_litres": st.column_config.NumberColumn("Water (L)", format="%d"),
+            "food_ration_days": st.column_config.NumberColumn("Food rations", format="%d"),
+            "emergency_toilets": st.column_config.NumberColumn("Toilets", format="%d"),
+        },
+    )
+    st.download_button("Download plan (CSV)", plan.to_csv().encode("utf-8"), "chennai_relief_plan.csv", "text/csv")
+
+    conc = opt["plan_report"]["concentration"][f"rho_{plan_rho:g}"]
+    st.markdown(
+        '<div class="insight-card warning"><h4>What the floor does not fix</h4>'
+        f"<p>The floor prevents starvation, but the budget above it still follows reported demand greedily: at "
+        f"rho = {plan_rho:g} the 3 best-served wards receive <b>{conc['share_of_units']:.0%}</b> of relief while "
+        f"holding <b>{conc['share_of_need']:.0%}</b> of need. Raising rho moves relief from the demand tranche into "
+        "the floors — try it with the slider.</p></div>",
+        unsafe_allow_html=True,
+    )
+    firm = opt["plan_report"]["firmness"]
+    core_firm = [w for w in core if w in firm["firm"]]
+    core_soft = [w for w in core if w not in firm["firm"]]
+    core_note = f"{len(core_firm)} of the {len(core)} robust-core wards ({', '.join(map(str, core_firm))})"
+    if core_soft:
+        core_note += (f"; core ward {', '.join(map(str, core_soft))} is judgment-sensitive — how much "
+                      "demand-tranche relief it gets depends on the method choice")
+    st.markdown(
+        '<div class="insight-card good"><h4>Which numbers to trust</h4>'
+        f"<p><b>{len(firm['firm'])} wards</b> keep their coverage within ±25% across every sensitivity scenario "
+        f"(GNN-forecast exposure, dasymetric population, two index variants), including {core_note}. "
+        f"<b>{len(firm['judgment_sensitive'])}</b> ({', '.join(map(str, firm['judgment_sensitive']))}) depend on a "
+        "method choice; their band is shown in the table. Supplies use Sphere Handbook (2018) minimums: 15 L water "
+        "and one 2,100 kcal ration per person per day, one emergency toilet per 50 people.</p></div>",
+        unsafe_allow_html=True,
+    )
+
+
+with tab_alloc:
+    try:
+        render_allocation_tab(load_optimizer_outputs())
+    except FileNotFoundError as e:
+        st.warning(f"Objective 3 outputs not generated yet: {e}")
 
 # --------------------------------------------------------------------------
 # Data & Limitations (task 5.4/5.5's findings, presented honestly)

@@ -35,10 +35,23 @@ outside these pre-joined files, so it starts fast.
   segments instantly — see "Elevation-staggered sweep" below.
 - **Distress Signals** (task 6.3) — real, pulsing markers for every
   Objective 2 pipeline output (task 4.5) that classified as distress AND
-  resolved to a coordinate, with popups showing the actual passage text.
+  resolved to a coordinate, with popups showing the actual passage text. Only task 1.13's real corpus is plotted —
+  task 4.5's synthetic smoke-test sentences and task 5.5's known geoparsing
+  false positive are filtered out via `src/nlp/real_distress_signals.py`
+  (fixed in PR #33; before that, a synthetic Velachery post was shown as real).
 - **Model Comparison** — interactive Plotly recreations of task 5.3's
   comparison (F1 per transition/split, fair-holdout AUC with a
   random-chance reference line).
+- **Resource Allocation** (task 7.3, Objective 3) — KPI tiles for the
+  signal-gap finding, a **live ρ / budget slider that re-solves task 7.2's
+  own OR-Tools MIP** on every move (16 integer variables, milliseconds) and
+  compares it with the demand-driven optimum at the same budget, a ward
+  coverage map, a coverage-per-ward chart, and the ranked relief plan from
+  `build_resource_plan.py` (downloadable CSV). The map is a native Plotly
+  `Choroplethmap` with the same keyless Esri dark tiles — deliberately not
+  another `components.html()` embed (see the deprecation note below).
+  Verified with Streamlit `AppTest` (slider values reproduce task 7.2's
+  report exactly) and Playwright screenshots, zero console errors.
 - **Data & Limitations** — task 5.4's ward-informativeness finding and
   task 5.5's geoparsing false positive, presented as designed insight
   cards, not a wall of JSON. The dashboard makes the same disclosures the
@@ -122,3 +135,11 @@ floodwater took during the real 2015 event (that data doesn't exist).
 Verified this doesn't reintroduce the earlier latency bug: timed 4 full
 Play cycles (16 ticks) via Playwright — interval stayed flat (~1.8s/tick)
 throughout, no escalation, zero console errors.
+
+## Known follow-up: `st.components.v1.html` is deprecated
+
+Streamlit 1.64 logs "Please replace `st.components.v1.html` with `st.iframe`"
+and documents removal after 2026-06-01. Both Folium maps (Flood Propagation,
+Distress Signals) still use it and still work on the installed version, but
+a Streamlit upgrade would break them. Not migrated yet — flagged during
+task 7.3 (whose new map avoids the API entirely).

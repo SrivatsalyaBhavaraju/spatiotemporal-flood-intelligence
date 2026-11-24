@@ -214,3 +214,55 @@ stays protected.
 `LpVariable` API is incompatible with the documented 2.x one and ships no CBC binary.
 OR-Tools (`pywraplp`, SCIP) was the other solver working.md §3.4 names, and it's already
 in `requirements.txt`.
+
+## `build_resource_plan.py` — task 7.3
+
+Turns 7.2's optimizer into an actionable plan: who gets what, in what order, and how
+firm each number is.
+
+```bash
+python src/optimizer/build_resource_plan.py
+```
+
+- **Which allocation:** ρ = **0.6**, read from 7.2's report (`cheapest_no_starvation_rho`)
+  rather than hard-coded. Budget = 25% of need (157,035 relief units, one 3-day relief
+  cycle). ρ = 1 is carried alongside for comparison.
+- **Two tranches, straight from the solution's structure:**
+  - **Tranche A, equity floor:** 61,362 units, dispatched first, most-vulnerable ward first.
+  - **Tranche B, demand-responsive:** 95,673 units, dispatched in the optimizer's own fill
+    order (largest share of reported distress first).
+  - `dispatch_sequence.csv` lists all 19 dispatch steps.
+- **Supplies from Sphere Handbook (2018) minimum standards**, not invented ratios:
+  - 15 L water per person per day (water supply standard 2.1)
+  - one 2,100 kcal ration per person per day
+  - one emergency toilet per 50 people at onset (excreta management standard 3.2)
+
+  For one 3-day cycle that comes to **7.07 M litres of water, 471,105 ration-days and
+  3,150 emergency toilets**. The 3-day cycle is a stated planning assumption.
+- **Which numbers to trust:** ρ = 0.6 is re-solved across the four same-budget sensitivity
+  scenarios: GNN-forecast exposure, dasymetric population, and the index without
+  sanitation or PCA-weighted. A ward is **firm** if its coverage moves ≤25% (relative).
+  - **9 wards are firm**, including 3 of the 4 robust-core wards (180, 171, 170).
+  - **7 are judgment-sensitive.** Saidapet (142), a core ward, is one of them: its
+    demand-tranche share swings from 38% to 76% coverage.
+  - Puzhuthivakkam/Ullagaram (169/168) drop to ~4.5% coverage in the
+    index-without-sanitation scenario. The town-level sanitation indicator is what lifts
+    them above the starvation line.
+- **What the floor does not fix (measured, not hidden):** above the floors, the linear
+  objective fills the demand tranche greedily. At ρ = 0.6, Velachery (179) and Kotturpuram
+  (172) reach 100% coverage, and the **3 best-served wards get 70% of relief for 21% of
+  need**. At ρ = 1 that is 52% for 23%. The floor prevents starvation; it doesn't make the
+  above-floor remainder equitable. If that matters for a deployment, add a per-ward
+  coverage cap or a concave objective. That would be a new modelling decision and is not
+  made here.
+
+**Outputs:**
+- `data/processed/optimizer/` (gitignored):
+  - `resource_plan.csv` / `.geojson`: per ward, tranches, coverage, scenario band,
+    firmness, supplies and a plain-language rationale.
+  - `dispatch_sequence.csv`
+  - `resource_plan_report.json`
+- **Figure:** `docs/figures/phase7_resource_plan.png`, a coverage map plus the ranked
+  plan with tranches and bands.
+- **Dashboard:** the **Resource Allocation** tab, with a live ρ/budget slider that
+  re-solves the MIP.

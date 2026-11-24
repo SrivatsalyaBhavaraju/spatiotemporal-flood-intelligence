@@ -20,6 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DASHBOARD_DATA_DIR = REPO_ROOT / "data" / "processed" / "dashboard"
 GROUND_TRUTH_DIR = REPO_ROOT / "data" / "processed" / "ground_truth"
 NLP_DIR = REPO_ROOT / "data" / "processed" / "nlp"
+OPTIMIZER_DIR = REPO_ROOT / "data" / "processed" / "optimizer"
 WARDS_PATH = REPO_ROOT / "data" / "raw" / "wards" / "study_wards.geojson"
 
 PHASES = ["pre_event", "rising", "peak", "receding"]
@@ -120,4 +121,29 @@ def compute_overview_kpis() -> dict:
         "classifier_f1": obj2["classification_precision_recall"]["f1"],
         "geoparse_precision": obj2["geoparsing_precision_new"]["precision"],
         "geoparse_recall": obj2["geoparsing_recall_task_2_10"]["recall"],
+    }
+
+
+def load_optimizer_outputs() -> dict:
+    """Objective 3 outputs (tasks 7.1-7.3), read as generated -- the tab
+    re-solves task 7.2's own model live for the slider, nothing new invented."""
+    paths = {
+        "inputs": OPTIMIZER_DIR / "ward_allocation_inputs.csv",
+        "plan": OPTIMIZER_DIR / "resource_plan.csv",
+        "optimizer_report": OPTIMIZER_DIR / "equity_optimizer_report.json",
+        "plan_report": OPTIMIZER_DIR / "resource_plan_report.json",
+        "vulnerability_report": OPTIMIZER_DIR / "vulnerability_index_report.json",
+    }
+    missing = [str(p) for p in paths.values() if not p.exists()]
+    if missing:
+        raise FileNotFoundError(
+            f"{missing[0]} not found -- run src/optimizer/build_vulnerability_index.py, "
+            "equity_optimizer.py and build_resource_plan.py first.")
+    inputs = pd.read_csv(paths["inputs"]).set_index("Ward_No")
+    return {
+        "inputs": inputs[["population", "flooded_share", "need", "signals", "vulnerability"]],
+        "plan": pd.read_csv(paths["plan"]).set_index("Ward_No"),
+        "optimizer_report": load_json_report(paths["optimizer_report"]),
+        "plan_report": load_json_report(paths["plan_report"]),
+        "vulnerability_report": load_json_report(paths["vulnerability_report"]),
     }
