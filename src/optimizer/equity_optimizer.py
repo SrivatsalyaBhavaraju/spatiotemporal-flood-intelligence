@@ -382,10 +382,14 @@ def _plot(inputs, units, frontier, path, core_wards):
     plt.close(fig)
 
 
-def main():
+def load_inputs_and_scenarios():
+    """Real upstream inputs + every sensitivity scenario (shared with task 7.3).
+
+    Returns dict with keys: inputs (primary), core (7.1 robust core),
+    signal_audit, share_gnn, and scenarios {name: (inputs, budget_share)}.
+    """
     vuln = pd.read_csv(VULN_PATH)
     vuln_report = json.loads((OPT_DIR / "vulnerability_index_report.json").read_text())
-    core = vuln_report["robustness"]["robust_core"]
     seg = _load_segments()
     corpus = pd.read_csv(CORPUS_PATH)["paragraph_text"].astype(str)
     signals, signal_audit = count_real_distress_signals(pd.read_csv(PIPELINE_OUTPUT_PATH), corpus, _ward_lookup())
@@ -393,12 +397,7 @@ def main():
     share_gt = flooded_share_by_ward(seg, "true_flood")
     share_gnn = flooded_share_by_ward(seg, "gnn_prob")
     inputs = build_ward_inputs(vuln, share_gt, signals)
-    budget = int(round(BUDGET_SHARE * inputs["need"].sum()))
 
-    units, metrics = run_models(inputs, budget, core)
-    frontier = price_of_fairness(inputs, budget, core)
-
-    # sensitivity: does the headline survive the judgment calls?
     scenarios = {"primary": (inputs, BUDGET_SHARE)}
     for b in BUDGET_SHARES_SENSITIVITY:
         if b != BUDGET_SHARE:
@@ -410,6 +409,20 @@ def main():
         vuln, share_gt, signals, vulnerability_col="vulnerability_index_without_sanitation"), BUDGET_SHARE)
     scenarios["index_pca_weighted"] = (build_ward_inputs(
         vuln, share_gt, signals, vulnerability_col="vulnerability_index_pca_weighted"), BUDGET_SHARE)
+    return {"inputs": inputs, "core": vuln_report["robustness"]["robust_core"], "signal_audit": signal_audit,
+            "share_gnn": share_gnn, "scenarios": scenarios}
+
+
+def main():
+    loaded = load_inputs_and_scenarios()
+    inputs, core, signal_audit = loaded["inputs"], loaded["core"], loaded["signal_audit"]
+    share_gnn, scenarios = loaded["share_gnn"], loaded["scenarios"]
+    budget = int(round(BUDGET_SHARE * inputs["need"].sum()))
+
+    units, metrics = run_models(inputs, budget, core)
+    frontier = price_of_fairness(inputs, budget, core)
+
+    # sensitivity: does the headline survive the judgment calls?
     sens = []
     for name, (inp, b) in scenarios.items():
         bud = int(round(b * inp["need"].sum()))

@@ -1,10 +1,10 @@
 # Spatiotemporal Digital Twins for Predictive Disaster Intelligence
 
-Capstone project — ward-scale flood propagation modeling with a spatiotemporal GNN, multilingual distress geoparsing, and (optional) equity-constrained resource allocation.
+Capstone project — ward-scale flood propagation modeling with a spatiotemporal GNN, multilingual distress geoparsing, and equity-constrained resource allocation (Objective 3 — optional in the original scope, now built: `src/optimizer/`).
 
 - **Start here:** [`working.md`](./working.md) — full technical rationale: objectives, research gaps, data sources, graph design, model design, ground-truth methodology, verified source list.
 - **Then:** [`developing.md`](./developing.md) — the build tracker: phases, task IDs, dependencies, owners, timeline. This is what the team works off day to day.
-- **What we found:** [`RESULTS.md`](./RESULTS.md) — a polished summary of the actual results (baseline vs. GNN, distress classification + geoparsing), distinct from the day-to-day task log above.
+- **What we found:** [`RESULTS.md`](./RESULTS.md) — a polished summary of the actual results (baseline vs. GNN, distress classification + geoparsing, equity-constrained relief allocation), distinct from the day-to-day task log above.
 
 ## Team
 

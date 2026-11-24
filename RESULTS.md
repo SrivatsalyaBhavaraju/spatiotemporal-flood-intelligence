@@ -65,9 +65,43 @@ Checked the actual per-ward relationship between elevation and the flood label a
 
 ---
 
+## Objective 3 — Equity-constrained relief allocation (tasks 7.1–7.3)
+
+**The question (working.md §3.1):** can relief be allocated so that wards with high social vulnerability aren't deprioritized just because they generate less distress signal?
+
+**First, a data problem that had to be solved, not assumed away (task 7.1):** the 16 study wards use Chennai's post-October-2011 200-ward numbering, but Census 2011 was enumerated on the old 155-ward corporation, so none of the study wards exists in the census.
+- **14 wards** are crosswalked spatially from the old ward boundaries.
+- **Wards 168/169** turned out to be a separate 2011 municipality, Puzhithivakkam (Ullagaram), not Perungudi as their zone label suggests.
+- The source totals reconcile exactly with published district figures. The study area holds 691,321 people.
+
+### Headline numbers
+
+| | Value | Source |
+|---|---|---|
+| Vulnerability index (7 Census proxies) | Robust top-4: Taramani (180), Saidapet (142), Little Mount (171), Ekkattuthangal (170). Each is in the top 5 in ≥80% of 10 rankings; min Spearman ρ = 0.90. | task 7.1 |
+| Robust-core wards with **zero** distress signal | **3 of 4** (180, 171, 170) | task 7.2 |
+| Affected people living in zero-signal wards | **45.6%** of 628,140 | task 7.2 |
+| Wards starved (<5% coverage), demand-driven optimum / signal-proportional / **equity model** | 12 / 8 / **0** of 16 | task 7.2 |
+| Cheapest no-starvation setting (price of fairness) | ρ = 0.6, giving up **7.2%** of reported-distress coverage | task 7.2 |
+| Relief plan at ρ = 0.6 (25% budget, one 3-day cycle) | 157,035 people covered: 7.07 M L water, 471,105 rations, 3,150 toilets (Sphere minimums) | task 7.3 |
+
+### What was actually found
+
+**The bias Objective 3 targets is real in this project's own data.** Reported distress clusters where 2015 news coverage went: Velachery and Kotturpuram. Three of the four most robustly vulnerable wards produce no signal at all. Both a demand-driven optimiser and a realistic "split by call volume" heuristic give those wards **nothing**. The second is included so the comparison isn't against a strawman.
+
+Stated precisely: across all 16 wards, Spearman(vulnerability, signals) = +0.18. Signal isn't systematically anti-correlated with vulnerability; the failure is concentrated in the most vulnerable wards.
+
+**A per-ward equity floor fixes it at a modest, quantified cost.** The equity-constrained MIP starves no ward in every sensitivity run: 3 budgets, GNN-forecast exposure, dasymetric population, and 2 index variants. The price-of-fairness frontier has a clear knee at ρ = 0.6. An *aggregate* vulnerability-weighted coverage score would have hidden the problem, because the demand-driven optimum scores higher on it while starving the core. That is why the model uses per-ward floors rather than an aggregate fairness objective.
+
+**What the floor does not fix, disclosed:** above the floors, the linear objective follows reported demand greedily. At ρ = 0.6 the three best-served wards receive 70% of relief while holding 21% of need. Raising ρ shifts relief into the floors (52% vs. 23% at ρ = 1). A per-ward cap or a concave objective would be the next modelling decision. It is not made here.
+
+**Which numbers to trust:** 9 of 16 ward allocations are firm (≤25% swing across scenarios), including 3 of the 4 core wards. Saidapet's demand-tranche share, and Puzhuthivakkam/Ullagaram's dependence on the town-level sanitation indicator, are judgment-sensitive. Both are flagged in the plan.
+
+---
+
 ## Integration
 
-Objective 1 and Objective 2 visibly become one system in `src/dashboard/`: an animated map toggles ground truth / baseline / GNN predictions across all 4 phases (elevation-staggered transitions — real per-segment elevation data, not a literal flow simulation, since no sub-phase timing data exists), real distress markers resolved from Objective 2's pipeline, interactive comparison charts, and the same disclosed limitations above rendered as readable insight cards — not hidden behind the polish.
+Objectives 1, 2 and 3 visibly become one system in `src/dashboard/`: an animated map toggles ground truth / baseline / GNN predictions across all 4 phases (elevation-staggered transitions — real per-segment elevation data, not a literal flow simulation, since no sub-phase timing data exists), real distress markers resolved from Objective 2's pipeline, interactive comparison charts, a Resource Allocation tab that re-solves Objective 3's optimizer live as you move the equity-floor and budget sliders, and the same disclosed limitations above rendered as readable insight cards — not hidden behind the polish.
 
 ---
 
@@ -77,6 +111,7 @@ Objective 1 and Objective 2 visibly become one system in `src/dashboard/`: an an
 - **Only 16 wards exist to split spatially** — every train/val/test-dependent result in this project carries real variance from *which* wards land where (tasks 3.7, 4.2, 5.4 all had to account for this directly).
 - **One real event, ever.** There is no second Chennai-scale flood in this dataset to validate against — every finding here is internal-consistency-checked, not cross-event-validated.
 - **The NLP corpus is real text, not real social media.** News/report register, not the informal, code-mixed text MuRIL's core strength targets — proves the pipeline architecture, not production readiness.
+- **Objective 3's inputs are only as fine as Census 2011.** The 16 wards rest on 12 distinct census units, sanitation exists only at town level, and no ward-level external validation source exists (Census slum data is town-level only). The distress signal behind the "demand" side is 10 real posts, enough to expose the bias, not to estimate demand precisely.
 - **`A3TGCN(periods=1)`** tests whether spatial graph convolution captures propagation, not genuine multi-step temporal memory (this dataset — one event, 4 phases — can't support that regardless of architecture).
 
 None of these were discovered late or hidden — each was found via a real, run-it-and-check diagnostic during the task that surfaced it, and disclosed in that task's own note.
@@ -91,4 +126,5 @@ None of these were discovered late or hidden — each was found via a real, run-
 | Original technical rationale, data sources, methodology | `working.md` |
 | Per-module details (data, bugs found, exact commands) | `src/*/README.md` |
 | To see it running | `streamlit run src/dashboard/app.py` |
-| Raw report JSON behind every number above | `data/processed/ground_truth/*.json`, `data/processed/nlp/*.json` (gitignored — regenerate via each task's script) |
+| Objective 3 method, crosswalk, sensitivity runs | `src/optimizer/README.md` |
+| Raw report JSON behind every number above | `data/processed/ground_truth/*.json`, `data/processed/nlp/*.json`, `data/processed/optimizer/*.json` (gitignored — regenerate via each task's script) |
