@@ -19,12 +19,14 @@ data/raw/*
 !data/raw/bhuvan/
 !data/raw/gazetteer/
 !data/raw/distress_text/
+!data/raw/census/
 
 # Raw source downloads that fit the "trivially redownloadable" case above —
 # redo via the fetch script named in data/README.md rather than committing these.
 data/raw/dem/N12E080.tif
 data/raw/dem/N13E080.tif
 data/raw/rainfall/imd_raw/
+data/raw/census/source/
 
 data/processed/*
 !data/processed/.gitkeep
