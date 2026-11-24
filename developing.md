@@ -596,7 +596,7 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 | # | Task | Owner | Depends on | Status |
 |---|---|---|---|---|
 | 7.1 | Build ward-level vulnerability index (Census 2011 proxies) | P4 | 6.4 | ☐✅ |
-| 7.2 | Set up OR-Tools/PuLP constrained optimizer | P4 | 7.1, 6.3 | ☐ |
+| 7.2 | Set up OR-Tools/PuLP constrained optimizer | P4 | 7.1, 6.3 | ☐✅ |
 | 7.3 | Produce ranked/allocated resource plan per ward | P4 | 7.2 | ☐ |
 
 **7.1 done (24 Nov 2026)** — merged via PR [#31](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/31) (`src/optimizer/fetch_census.py`, `src/optimizer/build_vulnerability_index.py`). Ward-level social vulnerability index from real Census 2011 proxies — *vulnerability* only (who copes worst), kept separate from flood *exposure*, which 7.2 combines with it.
@@ -608,6 +608,14 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 **Disclosed limits:** the 16 wards rest on only 12 distinct census units (177/178, 181/182, 168/169 share rates by construction); the dasymetric check barely moves the *ranking* (ρ=0.985) but does move *population counts* (ward 174: 61k → 46k), so both estimates are kept for 7.2; no ward-level external validation exists (Census slum PCA is town-level only). Figure: `docs/figures/phase7_vulnerability_index.png`. 16 new tests; 351 passing repo-wide, no regressions.
 
 **Next:** 7.2 (constrained optimizer) — dependencies 7.1 and 6.3 both satisfied.
+
+**7.2 done (24 Nov 2026)** — merged via PR [#32](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/32) (`src/optimizer/equity_optimizer.py`). OR-Tools MIP (SCIP, integer relief units): maximise reported-distress-weighted service subject to budget, need caps, and a **vulnerability-weighted equity floor** `x_i ≥ ρ·c̄·(v_i/v_max)·need_i` (c̄ = even-split coverage; ρ=1 guarantees the most vulnerable ward at least average coverage; feasible for every ρ by construction). Need = 7.1 population × road-length share flooded at peak in the fused ground truth (628,140 affected people); primary budget = 25% of need. Used OR-Tools rather than PuLP: the installed PuLP 4.x is a Rust-core rewrite with an incompatible API and no CBC.
+
+**The bias Objective 3 targets, measured in this project's own data:** 3 of 7.1's 4 robust-core vulnerable wards (180, 171, 170) produce **zero** real distress signal; zero-signal wards hold 45.6% of affected people (overall Spearman(vulnerability, signals) = +0.18 — the failure is concentrated in the most vulnerable wards, not a general anti-correlation; reported as such). Demand-driven optimum (ρ=0) starves **12/16** wards and a signal-proportional dispatcher heuristic **8/16** — both give zero-signal wards 0% of relief; the equity model (ρ=1) starves **0**, core min coverage 19.4%, zero-signal wards get 29.8%. Price-of-fairness frontier: **ρ=0.6 is the cheapest point with zero starved wards (7.2% of reported-distress coverage given up)**. Holds across 3 budgets, GNN-forecast exposure, dasymetric population, and 2 index variants (demand-driven starves 3–4 core wards every time, equity model 0). Disclosed: an aggregate vulnerability-weighted coverage metric scores the demand-driven model *higher* while it starves the core — why per-ward floors, not an aggregate objective.
+
+**Found while building, not assumed:** `objective2_pipeline_output.csv` contains task 4.5's 4 synthetic smoke-test sentences (one a located "Velachery" distress post) — only real-corpus rows count; task 5.5's Nandambakkam→Adambakkam false positive dropped. The dashboard's Distress tab (6.3) has neither filter — flagged for a separate fix. Figure: `docs/figures/phase7_allocation_comparison.png`. 15 new tests; 366 passing repo-wide, no regressions.
+
+**Next:** 7.3 (ranked/allocated resource plan per ward).
 
 ---
 
