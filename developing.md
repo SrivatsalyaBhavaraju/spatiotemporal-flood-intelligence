@@ -617,6 +617,8 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 
 **Next:** 7.3 (ranked/allocated resource plan per ward).
 
+**Correction (24 Nov 2026)** — merged via PR [#33](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/33), found during 7.2. Task 6.3's Distress Signals tab read every row of `objective2_pipeline_output.csv`, which mixes task 1.13's real corpus with task 4.5's 4 synthetic smoke-test sentences — so a synthetic "Families in Velachery were trapped..." post was plotted as a real marker, alongside task 5.5's known Nandambakkam→Adambakkam false positive. New torch-free `src/nlp/real_distress_signals.py` is now the single source of truth for the real-corpus filter and `KNOWN_FALSE_POSITIVES` (task 5.5, the 7.2 optimizer and the dashboard all import it, replacing 3 copies). Dashboard: 23 → 21 markers, all from the 10 real distress posts. Verified with Streamlit `AppTest` (all 5 tabs, no exceptions). 371 passing repo-wide. **Flagged, not fixed:** Streamlit's own warning says `st.components.v1.html` (used for both dashboard maps) "will be removed after 2026-06-01" — still works on the installed version, but a Streamlit upgrade would break the maps.
+
 ---
 
 ## 12. Phase 8 — Documentation, Report, Presentation (Weeks 10–12)
