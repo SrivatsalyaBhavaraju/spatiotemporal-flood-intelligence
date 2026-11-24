@@ -595,9 +595,19 @@ This is the highest-risk phase in the project (see working.md §1.5) — treat 3
 
 | # | Task | Owner | Depends on | Status |
 |---|---|---|---|---|
-| 7.1 | Build ward-level vulnerability index (Census 2011 proxies) | P4 | 6.4 | ☐ |
+| 7.1 | Build ward-level vulnerability index (Census 2011 proxies) | P4 | 6.4 | ☐✅ |
 | 7.2 | Set up OR-Tools/PuLP constrained optimizer | P4 | 7.1, 6.3 | ☐ |
 | 7.3 | Produce ranked/allocated resource plan per ward | P4 | 7.2 | ☐ |
+
+**7.1 done (24 Nov 2026)** — merged via PR [#31](https://github.com/SrivatsalyaBhavaraju/spatiotemporal-flood-intelligence/pull/31) (`src/optimizer/fetch_census.py`, `src/optimizer/build_vulnerability_index.py`). Ward-level social vulnerability index from real Census 2011 proxies — *vulnerability* only (who copes worst), kept separate from flood *exposure*, which 7.2 combines with it.
+
+**A real data problem found first, not assumed away:** the 16 study wards use GCC's post-Oct-2011 200-ward numbering, but Census 2011 was enumerated on the **old 155-ward** corporation (confirmed from the District Census Handbook Part B appendix: `WARD No.-0001`…`0155`). No study ward exists in the census. 14 wards are crosswalked spatially from DataMeet's digitised pre-2011 boundaries (areal weighting of *counts*; rates computed only after reaggregation). Wards **168/169** weren't in the 2011 corporation at all: despite the "PERUNGUDI" zone label, the gazetteer's own localities place them in Ullagaram/Puzhuthivakkam — in 2011 the separate **Puzhithivakkam (Ullagaram) Municipality**, Census town 803357, Kancheepuram district (not Perungudi TP, 803358). Source totals reconcile exactly with the published district figures (4,646,732 + 53,322); study area = 691,321 people.
+
+**Index:** 7 indicators (density, illiteracy 7+, SC/ST share, children 0–6, marginal workers, household size, no-piped-sewer latrine), min-max normalised, equal-weight mean. **Sanitation is published at town level only** (HH-08) — it can only separate 168/169 (89.7% without a piped-sewer latrine) from the other 14 (7.3%); kept, disclosed, and reported with and without. Result: **robust top-5 core = wards 180 (Taramani), 142 (Saidapet), 171 (Little Mount), 170 (Ekkattuthangal)**, each top-5 in ≥80% of 10 rankings (primary, PCA-weighted, 7 leave-one-indicator-out, road-length dasymetric crosswalk); Spearman ρ vs. primary min 0.90, median 0.93. Least vulnerable: 176/181/182 (Besant Nagar, Adyar, Thiruvanmiyur).
+
+**Disclosed limits:** the 16 wards rest on only 12 distinct census units (177/178, 181/182, 168/169 share rates by construction); the dasymetric check barely moves the *ranking* (ρ=0.985) but does move *population counts* (ward 174: 61k → 46k), so both estimates are kept for 7.2; no ward-level external validation exists (Census slum PCA is town-level only). Figure: `docs/figures/phase7_vulnerability_index.png`. 16 new tests; 351 passing repo-wide, no regressions.
+
+**Next:** 7.2 (constrained optimizer) — dependencies 7.1 and 6.3 both satisfied.
 
 ---
 
