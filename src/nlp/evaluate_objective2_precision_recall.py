@@ -71,23 +71,15 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.nlp.finetune_distress_classifier import Phase4NlpError, load_labeled_passages  # noqa: E402
 from src.nlp.fuzzy_geoparse import geoparse_text, load_gazetteer  # noqa: E402
+# Manually reviewed against real source context (see module docstring);
+# lives in a torch-free module so the dashboard/optimizer can share it.
+from src.nlp.real_distress_signals import KNOWN_FALSE_POSITIVES  # noqa: E402,F401
 
 CORPUS_PATH = REPO_ROOT / "data" / "raw" / "distress_text" / "corpus_draft.csv"
 LOOCV_REPORT_PATH = REPO_ROOT / "data" / "processed" / "nlp" / "distress_classifier_loocv_report.json"
 GEOPARSE_RECALL_REPORT_PATH = REPO_ROOT / "data" / "raw" / "gazetteer" / "fuzzy_geoparse_validation_report.json"
 OUT_DIR = REPO_ROOT / "data" / "processed" / "nlp"
 OUT_REPORT_PATH = OUT_DIR / "objective2_precision_recall_report.json"
-
-# Manually reviewed against real source context (see module docstring) --
-# (matched span lowercased, resolved gazetteer name) -> reason it's wrong.
-KNOWN_FALSE_POSITIVES = {
-    ("nandambakkam", "Adambakkam"): (
-        "Nandambakkam is a real, distinct Chennai locality (confirmed from its source "
-        "sentence, listed alongside Guindy/Adyar/Porur/Meenambakkam) that is absent from "
-        "the gazetteer -- fuzz.ratio matched it to the different, present place 'Adambakkam' "
-        "purely on 90.9% string similarity, clearing SCORE_CUTOFF=85."
-    ),
-}
 
 
 def _require_file(path: Path, produced_by: str) -> Path:

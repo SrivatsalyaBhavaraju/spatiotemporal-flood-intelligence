@@ -14,6 +14,8 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
+from src.nlp.real_distress_signals import is_known_false_positive, is_real_corpus_text, load_real_corpus_texts
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DASHBOARD_DATA_DIR = REPO_ROOT / "data" / "processed" / "dashboard"
 GROUND_TRUTH_DIR = REPO_ROOT / "data" / "processed" / "ground_truth"
@@ -62,19 +64,28 @@ def parse_resolved_locations(raw: str) -> list:
     return parsed if isinstance(parsed, list) else []
 
 
-def load_distress_markers() -> pd.DataFrame:
+def load_distress_markers(corpus_texts=None) -> pd.DataFrame:
     """Distress posts that ALSO resolved to >=1 coordinate -- working.md
     SS2.4's actual Objective 2 deliverable (task 4.5's own definition),
-    exploded one row per resolved location so each gets its own marker."""
+    exploded one row per resolved location so each gets its own marker.
+
+    Only task 1.13's REAL corpus passages are shown: the pipeline output
+    also holds task 4.5's synthetic smoke-test sentences, one of which (a
+    located "Velachery" distress post) was previously plotted as if real.
+    Task 5.5's known geoparsing false positive is dropped too."""
     path = NLP_DIR / "objective2_pipeline_output.csv"
     if not path.exists():
         raise FileNotFoundError(f"{path} not found -- run src/nlp/run_objective2_pipeline.py first.")
     df = pd.read_csv(path)
+    corpus_texts = load_real_corpus_texts() if corpus_texts is None else corpus_texts
+    df = df[df["text"].apply(lambda t: is_real_corpus_text(t, corpus_texts))].copy()
     df["resolved_locations"] = df["resolved_locations"].apply(parse_resolved_locations)
     distress = df[(df["distress_label"] == "distress") & (df["resolved_locations"].apply(len) > 0)]
     rows = []
     for _, row in distress.iterrows():
         for loc in row["resolved_locations"]:
+            if is_known_false_positive(row["text"], loc["place"]):
+                continue
             rows.append({
                 "text": row["text"], "probability": row["distress_probability"],
                 "place": loc["place"], "lon": loc["lon"], "lat": loc["lat"],
