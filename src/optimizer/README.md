@@ -117,3 +117,100 @@ leave-one-indicator-out variants, and a road-length dasymetric crosswalk.
 **Network note:** `curl` on this machine needs `--ssl-revoke-best-effort` for
 censusindia.gov.in (the Sophos proxy breaks Windows' revocation check). Python
 `requests` works as-is.
+
+## `equity_optimizer.py` — task 7.2
+
+The constrained optimizer itself (OR-Tools MIP, SCIP backend). It combines Objective 1's
+flood state, Objective 2's distress signals and 7.1's vulnerability index into one ward
+allocation.
+
+```bash
+python src/optimizer/equity_optimizer.py
+```
+
+### The bias, measured in this project's own data
+
+Distress signals per ward come from Objective 2's real pipeline output: **10 real distress
+posts**, mapped to wards. Reported distress clusters where news coverage of 2015 went:
+Velachery (179: 6 posts) and Kotturpuram (172: 4). **3 of 7.1's 4 robust-core
+vulnerable wards (180 Taramani, 171 Little Mount, 170 Ekkattuthangal) produce zero
+signal.** The zero-signal wards together hold **45.6% of all affected people**.
+
+To be precise about the claim: across all 16 wards, Spearman(vulnerability, signals) is
++0.18. Signal isn't systematically *anti*-correlated with vulnerability. The failure is
+concentrated in the most vulnerable wards, which is exactly where it matters.
+
+Two input filters were found while building this, not assumed:
+- **Smoke-test rows:** task 4.5's pipeline output also contains its **4 synthetic
+  smoke-test sentences**, one a located "Families in Velachery were trapped..." distress
+  post. Only rows whose text is in task 1.13's real corpus count.
+- **Known false positive:** task 5.5's Nandambakkam → Adambakkam match (ward 177) is dropped.
+
+(The dashboard's Distress Signals tab currently has neither filter. That's a separate fix,
+not done here.)
+
+### Model
+
+- **Need:** need_i = population_i (7.1) × ward i's road-length share flooded at **peak** in
+  the fused ground truth. Total: 628,140 affected people. Ground truth is the primary
+  exposure because relief is allocated during or after the peak, when the observed extent
+  exists. The GNN forecast is a sensitivity variant, since its per-ward probabilities
+  barely discriminate (tasks 5.1/5.3).
+- **Solver:** integer relief units x_i, budget B = 25% of need (157,035 units).
+  Maximise Σ p_i x_i, where p_i = share of reported distress.
+- **Constraints:** Σx ≤ B, 0 ≤ x_i ≤ need_i, and the **equity floor**
+  x_i ≥ ρ · c̄ · (v_i / v_max) · need_i, where c̄ = B / Σneed is the even-split coverage.
+- **What ρ means:** ρ = 1 guarantees the most vulnerable ward at least average coverage.
+  The floors are feasible for every ρ ∈ [0, 1] by construction. ρ = 0 is the same model
+  with the constraint off, and above the floors the budget still follows reported demand.
+
+### Result (budget = 25% of need)
+
+| Model | Starved wards (<5% coverage) | Core min coverage | Zero-signal wards' share of relief (vs. 45.6% of need) | Reported-distress coverage | Coverage Gini |
+|---|---|---|---|---|---|
+| Demand-driven optimum (ρ=0) | **12 / 16** | 0% | **0%** | 72.9% | 0.74 |
+| Signal-proportional (dispatcher heuristic) | **8 / 16** | 0% | **0%** | 71.7% | 0.65 |
+| Need-proportional (reference) | 0 | 25.0% | 45.6% | 25.0% | 0.00 |
+| **Equity-constrained (ρ=1)** | **0** | **19.4%** | **29.8%** | 55.5% | 0.40 |
+
+The signal-proportional heuristic is included so the comparison isn't against a
+strawman: a dispatcher splitting by call volume starves the same three core wards as
+the optimiser does.
+
+**Price-of-fairness frontier (ρ = 0 → 1):** ρ = 0.6 is the cheapest setting with **zero
+starved wards**, at only **7.2%** of reported-distress coverage given up. ρ = 1 costs
+23.9%. The knee is marked on the frontier plot (`cheapest_no_starvation_rho` in the
+report). That's a concrete policy choice, not a single number.
+
+**An aggregate fairness metric would have hidden the problem.** The demand-driven optimum
+scores *higher* on aggregate vulnerability-weighted coverage (0.278 vs 0.269) because it
+fully covers the moderately vulnerable, high-signal wards 142/172/179, while giving three
+core wards nothing. That's why the model enforces per-ward floors rather than optimising
+an aggregate fairness score.
+
+### Sensitivity: the headline holds in every scenario
+
+The scenarios are 3 budgets (10/25/50%), GNN-forecast exposure, the dasymetric population
+estimate, and the index without sanitation or PCA-weighted. In every one, demand-driven
+starves **3–4** robust-core wards and the equity model starves **0**. Price of fairness
+(ρ=1) ranges 14–49%; it is highest at the tightest budget, where every unit given to a
+floor is a unit taken from a loud ward.
+
+At a 10% budget the equity model leaves 4 *non-core* wards under the 5% "starved" line.
+This is by design: c̄ = 10%, so the least-vulnerable wards' floors fall below 5%. The core
+stays protected.
+
+### Outputs
+
+- **Figure:** `docs/figures/phase7_allocation_comparison.png`, with per-ward coverage by
+  model on the left and the frontier with the knee marked on the right.
+- **`data/processed/optimizer/` (gitignored):**
+  - `ward_allocation_inputs.csv`: need, signals, vulnerability, floors, and GNN-forecast
+    flooded share.
+  - `allocation_comparison.csv`: units and coverage per ward for each model.
+  - `equity_optimizer_report.json`: signal audit, models, frontier and sensitivity.
+
+**Why OR-Tools, not PuLP:** the installed PuLP is 4.x, a Rust-core rewrite whose
+`LpVariable` API is incompatible with the documented 2.x one and ships no CBC binary.
+OR-Tools (`pywraplp`, SCIP) was the other solver working.md §3.4 names, and it's already
+in `requirements.txt`.
