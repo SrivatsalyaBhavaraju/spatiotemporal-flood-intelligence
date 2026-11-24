@@ -92,9 +92,13 @@ CORPUS_PATH = REPO_ROOT / "data" / "raw" / "distress_text" / "corpus_draft.csv"
 STUDY_WARDS_PATH = REPO_ROOT / "data" / "raw" / "wards" / "study_wards.geojson"
 FIGURE_PATH = REPO_ROOT / "docs" / "figures" / "phase7_allocation_comparison.png"
 
+from src.nlp.real_distress_signals import (  # noqa: E402 -- shared with task 5.5 + the dashboard
+    KNOWN_FALSE_POSITIVES,
+    is_known_false_positive,
+    is_real_corpus_text,
+)
+
 METRIC_CRS = "EPSG:32644"
-# (post-text substring, resolved place) pairs known to be geoparsing errors -- task 5.5.
-KNOWN_FALSE_POSITIVE_MATCHES = [("Nandambakkam", "Adambakkam")]
 BUDGET_SHARE = 0.25           # primary scenario: relief for 25% of affected people
 BUDGET_SHARES_SENSITIVITY = [0.10, 0.25, 0.50]
 PRIMARY_RHO = 1.0
@@ -110,7 +114,7 @@ class OptimizerError(RuntimeError):
 # ------------------------------------------------------------------- inputs
 
 def count_real_distress_signals(pipeline_output, corpus_texts, ward_lookup,
-                                false_positives=KNOWN_FALSE_POSITIVE_MATCHES):
+                                false_positives=KNOWN_FALSE_POSITIVES):
     """Distinct real distress posts per ward.
 
     `pipeline_output`: task 4.5 rows [text, distress_label, resolved_locations(JSON)].
@@ -126,7 +130,7 @@ def count_real_distress_signals(pipeline_output, corpus_texts, ward_lookup,
     counts = {}
     for idx, row in pipeline_output.iterrows():
         text = str(row["text"]).strip()
-        if text not in real:
+        if not is_real_corpus_text(text, real):
             audit["dropped_not_in_corpus"] += 1
             continue
         if row["distress_label"] != "distress":
@@ -135,8 +139,7 @@ def count_real_distress_signals(pipeline_output, corpus_texts, ward_lookup,
         locs = json.loads(row["resolved_locations"]) if isinstance(row["resolved_locations"], str) else []
         wards = set()
         for loc in locs:
-            if any(fp_text.lower() in text.lower() and loc["place"] == fp_place
-                   for fp_text, fp_place in false_positives):
+            if is_known_false_positive(text, loc["place"], false_positives):
                 audit["dropped_false_positive_matches"].append({"row": int(idx), "place": loc["place"]})
                 continue
             w = ward_lookup(loc["lon"], loc["lat"])
