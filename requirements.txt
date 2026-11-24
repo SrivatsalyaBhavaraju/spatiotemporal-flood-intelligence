@@ -43,6 +43,9 @@ earthengine-api
 # Optimization (Objective 3, optional)
 ortools
 pulp
+# Census 2011 Excel sources (task 7.1 -- .xlsx and legacy .xls)
+openpyxl
+xlrd
 
 # Dashboard / viz
 streamlit

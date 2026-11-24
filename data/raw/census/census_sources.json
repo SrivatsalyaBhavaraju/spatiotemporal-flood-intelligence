@@ -1,0 +1,30 @@
+{
+  "pca_chennai": {
+    "url": "https://censusindia.gov.in/nada/index.php/catalog/6794/download/9871",
+    "file": "DDW_PCA3302_2011_chennai.xlsx",
+    "description": "PCA TV: Primary census abstract at town, village and ward level, Tamil Nadu - District Chennai - 2011",
+    "sha256": "1cc08bc5e4615b069fea2dd17a5cd6c1d1854052f25ed75285a055ced7aae3df",
+    "bytes": 102837
+  },
+  "pca_kancheepuram": {
+    "url": "https://censusindia.gov.in/nada/index.php/catalog/6795/download/9872",
+    "file": "DDW_PCA3304_2011_kancheepuram.xlsx",
+    "description": "PCA TV: Primary census abstract at town, village and ward level, Tamil Nadu - District Kancheepuram - 2011",
+    "sha256": "b9fd11e96627578365e5ed15fbeaef9e5b8307a9335d28c140a25bd5565f1eee",
+    "bytes": 941952
+  },
+  "hh08_latrine": {
+    "url": "https://censusindia.gov.in/nada/index.php/catalog/8673/download/11785",
+    "file": "HH08_latrine_tamil_nadu_2011.xls",
+    "description": "HL-08: Households by availability of type of latrine facility, Tamil Nadu - 2011 (town level)",
+    "sha256": "f9800c0f02046821d3007eb705d6a6b57610b46851dedc2b9b47264edaaf7303",
+    "bytes": 468480
+  },
+  "wards_2008": {
+    "url": "https://raw.githubusercontent.com/datameet/Municipal_Spatial_Data/master/Chennai/Wards-2008.geojson",
+    "file": "chennai_wards_2008.geojson",
+    "description": "DataMeet / Transparent Chennai: pre-2011 (155-ward) Chennai Corporation ward boundaries, CC BY-SA 2.5 IN",
+    "sha256": "b1d67e566b73e093afeb71d5e778c8d210608e1142bd79eb3fc46b8ffc3dc23f",
+    "bytes": 172525
+  }
+}
