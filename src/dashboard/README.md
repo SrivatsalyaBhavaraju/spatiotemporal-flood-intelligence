@@ -42,14 +42,14 @@ outside these pre-joined files, so it starts fast.
 - **Model Comparison** — interactive Plotly recreations of task 5.3's
   comparison (F1 per transition/split, fair-holdout AUC with a
   random-chance reference line).
-- **Resource Allocation** (task 7.3, Objective 3) — KPI tiles for the
+- **Fair Relief** (task 7.3, Objective 3; originally "Resource Allocation") — KPI tiles for the
   signal-gap finding, a **live ρ / budget slider that re-solves task 7.2's
   own OR-Tools MIP** on every move (16 integer variables, milliseconds) and
   compares it with the demand-driven optimum at the same budget, a ward
   coverage map, a coverage-per-ward chart, and the ranked relief plan from
   `build_resource_plan.py` (downloadable CSV). The map is a native Plotly
   `Choroplethmap` with the same keyless Esri dark tiles — deliberately not
-  another `components.html()` embed (see the deprecation note below).
+  another `components.html()` embed.
   Verified with Streamlit `AppTest` (slider values reproduce task 7.2's
   report exactly) and Playwright screenshots, zero console errors.
 - **Data & Limitations** — task 5.4's ward-informativeness finding and
@@ -136,10 +136,37 @@ Verified this doesn't reintroduce the earlier latency bug: timed 4 full
 Play cycles (16 ticks) via Playwright — interval stayed flat (~1.8s/tick)
 throughout, no escalation, zero console errors.
 
-## Known follow-up: `st.components.v1.html` is deprecated
+## Presentation redesign (for the demo, task 8.3)
 
-Streamlit 1.64 logs "Please replace `st.components.v1.html` with `st.iframe`"
-and documents removal after 2026-06-01. Both Folium maps (Flood Propagation,
-Distress Signals) still use it and still work on the installed version, but
-a Streamlit upgrade would break them. Not migrated yet — flagged during
-task 7.3 (whose new map avoids the API entirely).
+Reorganised as a story an audience can follow. The tabs are now **🧭 The Story**,
+**🌊 Flood Prediction**, **📡 Distress Signals**, **📈 Model Verdict**, **⚖️ Fair Relief**
+and **🔍 Limits & Honesty**.
+
+- **Question-and-answer banner:** every tab opens with the question it answers and the
+  answer in one sentence, before any chart.
+- **The Story:** the problem, a Predict → Listen → Decide pipeline diagram with each
+  stage's real headline result, three findings to remember, and a navigation strip. The
+  original 8 KPI tiles moved into a "Technical metrics (for the Q&A)" expander.
+- **Flood Prediction:**
+  - **Phase timeline:** the real dates come from task 2.5's own phase windows.
+  - **"What to watch" guide:** tells the viewer what to look for on the map.
+  - **Phase-by-phase chart:** "share of roads flooded" for ground truth vs. both models.
+    It shows honestly that the thresholded GNN flags everything (the task 5.1 artifact),
+    while its *probability* tracks the flood (0.27 → 0.58).
+- **Distress Signals:** a 4-step text → classifier → geoparser → map explainer, plus a
+  **live geoparser box**. It runs task 2.10's real geoparser on whatever is typed and
+  correctly returns nothing for text with no known place.
+- **Model Verdict:** human-readable labels (e.g. "Validation wards (unseen)"), one
+  annotated flood-onset chart, an AUC chart with a coin-flip line, and the full table in
+  an expander.
+- **Demo-safety fixes:**
+  - **No accidental zoom:** scroll-wheel zoom is disabled on every map. Before, scrolling
+    the page over a map zoomed it away from Chennai, which was caught in a Playwright
+    screenshot.
+  - **Compact attribution:** the map credit no longer covers part of the map.
+- **Deprecated API removed:** both Folium maps now embed via `st.iframe`, replacing
+  `st.components.v1.html`. Streamlit 1.64 documented its removal after 2026-06-01, so
+  this resolves the earlier follow-up. The embedded HTML is the app's own Folium output,
+  never user input.
+
+The runbook for presenting this is [`DEMO.md`](../../DEMO.md).

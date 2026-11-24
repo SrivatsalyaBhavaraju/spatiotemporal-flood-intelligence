@@ -101,7 +101,7 @@ Stated precisely: across all 16 wards, Spearman(vulnerability, signals) = +0.18.
 
 ## Integration
 
-Objectives 1, 2 and 3 visibly become one system in `src/dashboard/`: an animated map toggles ground truth / baseline / GNN predictions across all 4 phases (elevation-staggered transitions — real per-segment elevation data, not a literal flow simulation, since no sub-phase timing data exists), real distress markers resolved from Objective 2's pipeline, interactive comparison charts, a Resource Allocation tab that re-solves Objective 3's optimizer live as you move the equity-floor and budget sliders, and the same disclosed limitations above rendered as readable insight cards — not hidden behind the polish.
+Objectives 1, 2 and 3 visibly become one system in `src/dashboard/`: an animated map toggles ground truth / baseline / GNN predictions across all 4 phases (elevation-staggered transitions — real per-segment elevation data, not a literal flow simulation, since no sub-phase timing data exists), real distress markers resolved from Objective 2's pipeline, interactive comparison charts, a Fair Relief tab that re-solves Objective 3's optimizer live as you move the equity-floor and budget sliders, and the same disclosed limitations above rendered as readable insight cards — not hidden behind the polish.
 
 ---
 

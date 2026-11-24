@@ -4,6 +4,7 @@ Capstone project — ward-scale flood propagation modeling with a spatiotemporal
 
 - **Start here:** [`working.md`](./working.md) — full technical rationale: objectives, research gaps, data sources, graph design, model design, ground-truth methodology, verified source list.
 - **Then:** [`developing.md`](./developing.md) — the build tracker: phases, task IDs, dependencies, owners, timeline. This is what the team works off day to day.
+- **Presenting it:** [`DEMO.md`](./DEMO.md) — the demo-rehearsal runbook: setup, warm-up checklist, a timed 12-minute script per tab, likely questions with honest answers, and fallbacks.
 - **What we found:** [`RESULTS.md`](./RESULTS.md) — a polished summary of the actual results (baseline vs. GNN, distress classification + geoparsing, equity-constrained relief allocation), distinct from the day-to-day task log above.
 
 ## Team
